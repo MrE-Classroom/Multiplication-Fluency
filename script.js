@@ -1,285 +1,81 @@
-/* Multiplication Quest: Boss Realms - static GitHub Pages game. Local storage only. No personal data collection. */
-const SAVE_KEY = 'mqbr_save_v4_local_only';
-const LB_KEY = 'mqbr_local_leaderboard_v4';
-const app = document.getElementById('app');
-const modalLayer = document.getElementById('modalLayer');
-const modalBox = document.getElementById('modalBox');
-const toastEl = document.getElementById('toast');
-
-const AREAS = [
-  {id:1, name:'Meadow of Ones, Twos, and Threes', facts:[1,2,3], questions:8, boss:'The Skip-Counting Sprite', lore:'The meadow has lost its rhythm. Restore the beat of 1s, 2s, and 3s.'},
-  {id:2, name:'Caves of Fours and Fives', facts:[4,5], questions:10, boss:'The Echo Goblin', lore:'Echoes bounce through the cave. Master 4s and 5s to pass.'},
-  {id:3, name:'Forest of Sixes and Sevens', facts:[6,7], questions:12, boss:'The Thorn Troll', lore:'Vines block the learning path. Fluency with 6s and 7s cuts them away.'},
-  {id:4, name:'Mountain of Eights and Nines', facts:[8,9], questions:14, boss:'The Storm Giant', lore:'Lightning strikes fast. Use 8s and 9s with accuracy and confidence.'},
-  {id:5, name:'Castle of Tens', facts:[10], questions:10, boss:'The Multiplication Dragon', lore:'The dragon guards the final gate. Show mastery of all facts 1–10.'}
-];
-const SHOP = [
-  {key:'double', name:'Double Points', cost:40, desc:'Next correct answer gives double points.'},
-  {key:'shield', name:'Shield', cost:50, desc:'Blocks one wrong answer from losing a heart.'},
-  {key:'focus', name:'Focus Spark', cost:30, desc:'Shows an array hint for the next problem.'},
-  {key:'heal', name:'Heart Refill', cost:60, desc:'Restores one heart now.'}
-];
-const CLASSES = {
-  knight:{name:'Knight', icon:'🛡️', desc:'Steady defender. Starts with extra armor training.', bonus:'Max hearts +1 and shields cost less.'},
-  archer:{name:'Archer', icon:'🏹', desc:'Fast and precise. Rewards streaks.', bonus:'+1 coin on correct answers and bonus boss damage on 5-streaks.'},
-  mage:{name:'Mage', icon:'🔮', desc:'Power specialist. Uses magic to study facts.', bonus:'Focus Sparks cost less and correct answers give extra XP.'}
+const SAVE_KEY='multQuestRPG_v1_localOnly';
+const app=document.getElementById('app');
+const modalRoot=document.getElementById('modal-root');
+const FACT_MAX=12;
+const CLASSES={
+ knight:{name:'Knight',icon:'🛡️',stars:2,desc:'The safest hero. High health, stronger shields, and mistakes hurt less.',hp:130,coinBoost:0,crit:0.04,powerDiscount:0,shieldBonus:1},
+ archer:{name:'Archer',icon:'🏹',stars:3,desc:'The speed hero. Earns more coins for fast answers and lands more critical hits.',hp:100,coinBoost:.25,crit:0.18,powerDiscount:0,shieldBonus:0},
+ mage:{name:'Mage',icon:'🔮',stars:4,desc:'The strategy hero. Powers cost less, time freeze lasts longer, and hints are stronger.',hp:95,coinBoost:0,crit:0.08,powerDiscount:.25,shieldBonus:0}
 };
-const GEAR = [
-  {key:'cloth_helm', slot:'helmet', name:'Cloth Cap', icon:'🧢', cost:20, points:1, desc:'+1 point per correct answer.'},
-  {key:'iron_helm', slot:'helmet', name:'Iron Helmet', icon:'⛑️', cost:70, points:3, desc:'+3 points per correct answer.'},
-  {key:'padded_body', slot:'body', name:'Padded Armor', icon:'🥋', cost:40, maxHearts:1, desc:'+1 max heart while equipped.'},
-  {key:'iron_body', slot:'body', name:'Iron Armor', icon:'🦺', cost:95, maxHearts:2, desc:'+2 max hearts while equipped.'},
-  {key:'soft_legs', slot:'legs', name:'Swift Leg Guards', icon:'🥾', cost:35, coins:1, desc:'+1 coin per correct answer.'},
-  {key:'iron_legs', slot:'legs', name:'Iron Greaves', icon:'🦿', cost:85, coins:2, desc:'+2 coins per correct answer.'},
-  {key:'wood_sword', slot:'weapon', name:'Wooden Sword', icon:'🗡️', cost:30, bossDamage:1, desc:'+1 extra boss damage.'},
-  {key:'crystal_staff', slot:'weapon', name:'Crystal Staff', icon:'🪄', cost:90, points:2, bossDamage:1, desc:'+2 points and +1 boss damage.'},
-  {key:'training_bow', slot:'weapon', name:'Training Bow', icon:'🏹', cost:75, coins:1, bossDamage:1, desc:'+1 coin and +1 boss damage.'}
+const AREAS=[
+ {id:0,name:'Apprentice Forest',stars:1,facts:[0,1,2,3],boss:'Forest Goblin',questions:10},
+ {id:1,name:'Wolfwood Trail',stars:2,facts:[4,5],boss:'Alpha Wolf',questions:12},
+ {id:2,name:'Ironkeep Mountains',stars:3,facts:[6,7],boss:'Stone Giant',questions:14},
+ {id:3,name:'Dragonfire Wastes',stars:4,facts:[8,9],boss:'Fire Dragon',questions:16},
+ {id:4,name:'Citadel of Legends',stars:5,facts:[10,11,12],boss:'Dragon of the Tables',questions:18},
+ {id:5,name:'Hall of Champions',stars:5,facts:[0,1,2,3,4,5,6,7,8,9,10,11,12],boss:'Mastery Wyrm',questions:20,endgame:true}
 ];
-function newState(nickname='Hero', heroClass='knight'){
-  return {nickname, heroClass, score:0, coins:0, xp:0, hearts:maxHeartsFor({heroClass, equipment:{}}), streak:0, bestStreak:0, unlockedArea:1, completedAreas:[], badges:[], powers:{double:0,shield:0,focus:0}, inventory:{gear:[],items:{}}, equipment:{helmet:null,body:null,legs:null,weapon:null}, currentRun:null, settings:{sound:false}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()};
-}
-let state = loadSave() || null;
-let currentProblem = null;
-let pendingResult = null;
-let returnModal = null;
-
-function save(){ if(!state) return; migrateState(state); state.hearts=clamp(state.hearts,0,maxHeartsFor(state)); state.updatedAt = new Date().toISOString(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); updateLocalLeaderboard(); }
-function loadSave(){ try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)); return s?migrateState(s):null;}catch{return null;} }
-function migrateState(s){
-  s.heroClass = s.heroClass || 'knight';
-  s.inventory = s.inventory || {gear:[],items:{}};
-  s.inventory.gear = Array.isArray(s.inventory.gear) ? s.inventory.gear : [];
-  s.inventory.items = s.inventory.items || {};
-  s.equipment = s.equipment || {helmet:null,body:null,legs:null,weapon:null};
-  ['helmet','body','legs','weapon'].forEach(slot=>{ if(!(slot in s.equipment)) s.equipment[slot]=null; });
-  s.powers = s.powers || {double:0,shield:0,focus:0};
-  ['double','shield','focus'].forEach(k=>s.powers[k]=s.powers[k]||0);
-  s.hearts = clamp(s.hearts || maxHeartsFor(s), 0, maxHeartsFor(s));
-  return s;
-}
-function gearByKey(key){ return GEAR.find(g=>g.key===key); }
-function equippedGear(st=state){ return Object.values(st?.equipment||{}).map(gearByKey).filter(Boolean); }
-function gearBonus(prop, st=state){ return equippedGear(st).reduce((sum,g)=>sum+(g[prop]||0),0); }
-function maxHeartsFor(st=state){ return 3 + (st?.heroClass==='knight'?1:0) + gearBonus('maxHearts', st); }
-function powerCost(item){
-  if(state?.heroClass==='knight' && item.key==='shield') return Math.max(10, item.cost-15);
-  if(state?.heroClass==='mage' && item.key==='focus') return Math.max(10, item.cost-15);
-  return item.cost;
-}
-function classInfo(st=state){ return CLASSES[st?.heroClass || 'knight'] || CLASSES.knight; }
-function resetAll(){ localStorage.removeItem(SAVE_KEY); state=null; renderStart(); }
-function updateLocalLeaderboard(){
-  const entry = {nickname: safeNick(state.nickname), score: state.score, bestStreak: state.bestStreak, highestArea: state.unlockedArea, bossesDefeated: state.completedAreas.length, date: new Date().toLocaleDateString()};
-  let lb=[]; try{lb=JSON.parse(localStorage.getItem(LB_KEY)||'[]')}catch{}
-  const idx=lb.findIndex(x=>x.nickname===entry.nickname);
-  if(idx>=0) lb[idx]= entry.score>=lb[idx].score ? entry : lb[idx]; else lb.push(entry);
-  lb.sort((a,b)=>b.score-a.score); lb=lb.slice(0,10);
-  localStorage.setItem(LB_KEY, JSON.stringify(lb));
-}
-function safeNick(n){ return String(n||'Hero').replace(/[<>]/g,'').slice(0,16) || 'Hero'; }
-function toast(msg){ toastEl.textContent=msg; toastEl.classList.remove('hidden'); setTimeout(()=>toastEl.classList.add('hidden'),1800); }
-function showModal(html){ modalBox.innerHTML=html; modalLayer.classList.remove('hidden'); }
-function closeModal(){ modalLayer.classList.add('hidden'); modalBox.innerHTML=''; }
-function areaById(id){ return AREAS.find(a=>a.id===id) || AREAS[0]; }
-function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
-
-function renderStart(){
-  app.innerHTML = `<div class="screen"><h1 class="title">Multiplication Quest:<br>Boss Realms</h1>
-  <p class="subtitle">A multiplication fluency adventure for facts 1–10.</p>
-  <div class="lore"><b>Story:</b> The Number Kingdom has been shattered into five realms. Each area is guarded by a boss who can only be defeated with multiplication fluency. Earn coins, unlock powers, and restore the kingdom one fact at a time.</div>
-  <div class="warning">⚠️ Student Safety: Use a nickname only. Do not use your real name, school, address, phone number, email, or any personal information.</div>
-  ${state?`<div class="row"><button class="btn primary" onclick="continueAdventure()">Continue Adventure</button><button class="btn" onclick="renderMainMenu()">Main Menu</button></div>`:''}
-  <div class="card" style="margin-top:14px;text-align:center"><h2>Start New Adventure</h2><input id="nick" class="input" maxlength="16" placeholder="Nickname only" autocomplete="off"/>
-  <h3>Choose Your Class</h3><div class="class-grid">${Object.entries(CLASSES).map(([key,c])=>`<label class="class-card"><input type="radio" name="heroClass" value="${key}" ${key==='knight'?'checked':''}/><span class="class-icon">${c.icon}</span><b>${c.name}</b><small>${c.bonus}</small></label>`).join('')}</div>
-  <div class="row" style="margin-top:12px"><button class="btn gold" onclick="startNew()">Begin Quest</button></div></div></div>`;
-  setTimeout(()=>document.getElementById('nick')?.focus(),50);
-}
-function startNew(){
-  const nick=safeNick(document.getElementById('nick').value || 'Hero');
-  const heroClass=document.querySelector('input[name="heroClass"]:checked')?.value || 'knight';
-  state=newState(nick, heroClass); save(); renderMainMenu();
-}
-function continueAdventure(){
-  if(!state) return renderStart();
-  if(state.currentRun) renderGame(); else renderMainMenu();
-}
-function renderMainMenu(){
-  save();
-  app.innerHTML = `<div class="screen"><h1 class="title">Main Menu</h1>${hudHtml()}
-  <div class="row"><button class="btn primary" onclick="continueAdventure()" ${state.currentRun?'':'disabled'}>Continue Current Run</button><button class="btn purple" onclick="showCharacter()">Character</button><button class="btn purple" onclick="showLeaderboard()">Local Leaderboard</button><button class="btn" onclick="showInstructions()">How to Play</button><button class="btn danger" onclick="confirmReset()">Reset Save</button></div>
-  <h2>Choose an Area</h2><div class="grid">${AREAS.map(areaCard).join('')}</div>
-  <p class="small">All progress and leaderboard data are saved only in this browser on this device. Nothing is uploaded or exported.</p></div>`;
-}
-function hudHtml(){const c=classInfo(); return `<div class="hud"><div class="stat">Hero<b>${safeNick(state.nickname)}</b><span>${c.icon} ${c.name}</span></div><div class="stat">Score<b>${state.score}</b></div><div class="stat">Coins<b>${state.coins}</b></div><div class="stat">Best Streak<b>${state.bestStreak}</b></div><div class="stat">Hearts<b>${'❤'.repeat(state.hearts)}${'♡'.repeat(Math.max(0,maxHeartsFor()-state.hearts))}</b></div></div>`}
-function areaCard(a){
-  const unlocked=a.id<=state.unlockedArea, done=state.completedAreas.includes(a.id);
-  const pct = done?100:(state.currentRun&&state.currentRun.areaId===a.id?Math.round(state.currentRun.qIndex/a.questions*100):0);
-  return `<div class="area-card"><h3>Area ${a.id}: ${a.name}</h3><p>${a.lore}</p><p><b>Boss:</b> ${a.boss}</p><div class="progressbar"><div class="progressfill" style="width:${pct}%"></div></div><p class="small">${done?'Completed':unlocked?'Unlocked':'Locked'}</p><button class="btn ${unlocked?'primary':''}" ${unlocked?'':'disabled'} onclick="enterArea(${a.id})">${state.currentRun&&state.currentRun.areaId===a.id?'Resume Area':'Enter Area'}</button></div>`;
-}
-function enterArea(id){
-  if(id>state.unlockedArea) return;
-  if(!state.currentRun || state.currentRun.areaId!==id){
-    const a=areaById(id);
-    state.currentRun={areaId:id, qIndex:0, phase:'questions', bossHp:0, bossMaxHp:0, answeredInArea:0};
-  }
-  save(); renderGame();
-}
-function renderGame(){
-  const run=state.currentRun; if(!run) return renderMainMenu();
-  const area=areaById(run.areaId);
-  const isBoss=run.phase==='boss';
-  app.innerHTML = `<div class="screen"><div class="row"><button class="btn" onclick="confirmMainMenu()">Main Menu</button><button class="btn purple" onclick="openShop('game')">Shop</button></div>${hudHtml()}
-  <h2>${isBoss?'Boss Battle':'Quest'}: ${area.name}</h2><p>${isBoss?`Defeat ${area.boss}!`:`Question ${run.qIndex+1} of ${area.questions}. Boss battle unlocks after this area.`}</p>
-  ${isBoss?`<div class="progressbar bossbar"><div class="progressfill" style="width:${Math.max(0,run.bossHp/run.bossMaxHp*100)}%"></div></div><p>Boss HP: ${run.bossHp}/${run.bossMaxHp}</p>`:`<div class="progressbar"><div class="progressfill" style="width:${Math.round(run.qIndex/area.questions*100)}%"></div></div>`}
-  <div id="hintBox"></div><div class="problem" id="problemText">...</div><div class="answer-wrap"><input id="answer" class="input answer-input" type="number" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus /><div class="row" style="margin-top:12px"><button class="btn primary" onclick="submitAnswer()">Submit</button></div></div></div>`;
-  makeProblem();
-  document.getElementById('answer').addEventListener('keydown',e=>{ if(e.key==='Enter') submitAnswer(); });
-  focusAnswer();
-}
-function focusAnswer(){
-  const tryFocus = () => {
-    const el = document.getElementById('answer');
-    if(!el) return;
-    try { el.focus({preventScroll:true}); } catch { el.focus(); }
-    try { el.select?.(); } catch {}
-  };
-  // Immediate focus is necessary on phones because delayed focus often fails to reopen the keyboard.
-  tryFocus();
-  requestAnimationFrame(tryFocus);
-  setTimeout(tryFocus, 25);
-  setTimeout(tryFocus, 120);
-}
-
-function makeProblem(){
-  const run=state.currentRun, area=areaById(run.areaId);
-  let a;
-  if(run.phase==='boss') a = Math.floor(Math.random()*10)+1;
-  else a = area.facts[Math.floor(Math.random()*area.facts.length)];
-  const b = Math.floor(Math.random()*10)+1;
-  currentProblem={a,b,answer:a*b};
-  document.getElementById('problemText').textContent=`${a} × ${b}`;
-  const hintBox=document.getElementById('hintBox');
-  if(state.powers.focus>0){ hintBox.innerHTML=`<div class="card"><b>Focus Spark Hint:</b> Think of ${a} groups of ${b}. ${arrayHint(a,b)}</div>`; state.powers.focus--; save(); }
-  else hintBox.innerHTML='';
-}
-function arrayHint(a,b){ return `${a} rows × ${b} columns = ${a*b} spaces.`; }
-function submitAnswer(){
-  const input=document.getElementById('answer'); if(!input) return;
-  const val=Number(input.value); if(!Number.isFinite(val)) {toast('Type an answer first.'); focusAnswer(); return;}
-  const correct=val===currentProblem.answer;
-  const run=state.currentRun; const isBoss=run.phase==='boss';
-  let points=correct?10+state.streak*2+gearBonus('points'):0, coins=correct?5+gearBonus('coins')+(state.heroClass==='archer'?1:0):0;
-  let messages=[];
-  if(correct){
-    if(state.powers.double>0){points*=2; state.powers.double--; messages.push('Double Points used!');}
-    state.streak++; state.bestStreak=Math.max(state.bestStreak,state.streak); state.score+=points; state.coins+=coins; state.xp+=points+(state.heroClass==='mage'?2:0);
-    if(isBoss){ let dmg=1+gearBonus('bossDamage'); if(state.heroClass==='archer' && state.streak>0 && state.streak%5===0){dmg+=1; messages.push('Archer 5-streak bonus damage!');} run.bossHp=Math.max(0,run.bossHp-dmg); messages.push(`Boss took ${dmg} damage!`); }
-  } else {
-    if(state.powers.shield>0){ state.powers.shield--; messages.push('Shield blocked the mistake.'); }
-    else { state.hearts--; state.streak=0; messages.push(`Correct answer: ${currentProblem.answer}`); }
-  }
-  if(!isBoss && correct){ run.qIndex++; run.answeredInArea++; }
-  save();
-  pendingResult={correct, points, coins, messages, problem:`${currentProblem.a} × ${currentProblem.b}`, answer:currentProblem.answer};
-  showResultModal();
-}
-function showResultModal(){
-  const r=pendingResult; const run=state.currentRun;
-  let status = r.correct ? 'Correct!' : 'Try Again Next Time';
-  let body = `<h2>${r.correct?'✨':'💭'} ${status}</h2><p><b>${r.problem} = ${r.answer}</b></p><p>${r.correct?`+${r.points} points · +${r.coins} coins`:'Mistakes help your brain grow.'}</p>${r.messages.map(m=>`<p class="small">${m}</p>`).join('')}`;
-  if(state.hearts<=0){
-    body += `<div class="modal-actions"><button class="btn primary" onclick="endRunToMenu()">Return to Main Menu</button></div>`;
-  } else if(run.phase==='boss' && run.bossHp<=0){
-    body += `<div class="modal-actions"><button class="btn gold" onclick="bossVictory()">Claim Boss Victory</button><button class="btn purple" onclick="openShop('result')">Open Shop</button><button class="btn" onclick="confirmMainMenuFromResult()">Main Menu</button></div>`;
-  } else if(run.phase==='questions' && run.qIndex>=areaById(run.areaId).questions){
-    body += `<div class="modal-actions"><button class="btn gold" onclick="startBossIntro()">Start Boss Battle</button><button class="btn purple" onclick="openShop('result')">Open Shop</button><button class="btn" onclick="confirmMainMenuFromResult()">Main Menu</button></div>`;
-  } else {
-    body += `<div class="modal-actions"><button class="btn primary" onpointerdown="window.__keepKeyboard=true" onclick="nextQuestion()">Next Question</button><button class="btn purple" onclick="openShop('result')">Open Shop</button><button class="btn" onclick="confirmMainMenuFromResult()">Main Menu</button></div>`;
-  }
-  showModal(body);
-}
-function nextQuestion(){
-  closeModal();
-  save();
-  renderGame();
-  focusAnswer();
-}
-
-function startBossIntro(){
-  const area=areaById(state.currentRun.areaId);
-  state.currentRun.phase='boss'; state.currentRun.bossMaxHp=5+area.id; state.currentRun.bossHp=5+area.id; save();
-  showModal(`<h2>⚔️ Boss Battle!</h2><p>${area.boss} appears!</p><p>Answer facts correctly to reduce boss HP. Every correct answer deals 1 damage.</p><div class="modal-actions"><button class="btn gold" onpointerdown="window.__keepKeyboard=true" onclick="nextQuestion()">Fight Boss</button><button class="btn purple" onclick="openShop('result')">Prepare in Shop</button></div>`);
-}
-function bossVictory(){
-  const id=state.currentRun.areaId, area=areaById(id);
-  if(!state.completedAreas.includes(id)) state.completedAreas.push(id);
-  state.unlockedArea=clamp(Math.max(state.unlockedArea,id+1),1,AREAS.length);
-  state.coins+=50; state.score+=100;
-  const badge=`Defeated ${area.boss}`; if(!state.badges.includes(badge)) state.badges.push(badge);
-  state.currentRun=null; state.hearts=3; save();
-  showModal(`<h2>🏆 Victory!</h2><p>You defeated <b>${area.boss}</b>.</p><p>Reward: +100 points, +50 coins, and a badge.</p><div class="modal-actions"><button class="btn primary" onclick="closeModal();renderMainMenu()">Back to Main Menu</button></div>`);
-}
-function endRunToMenu(){ state.currentRun=null; state.hearts=3; save(); closeModal(); renderMainMenu(); }
-function confirmMainMenu(){ showModal(`<h2>Leave Area?</h2><p>Your exact place in this area will be saved. You can continue later.</p><div class="modal-actions"><button class="btn primary" onclick="closeModal();renderMainMenu()">Save and Leave</button><button class="btn" onclick="closeModal();focusAnswer()">Stay</button></div>`); }
-function confirmMainMenuFromResult(){ showModal(`<h2>Save and Leave?</h2><p>Your current area, question number, boss HP, coins, powers, and score will be saved.</p><div class="modal-actions"><button class="btn primary" onclick="closeModal();renderMainMenu()">Save and Leave</button><button class="btn" onclick="showResultModal()">Back to Result</button></div>`); }
-function openShop(origin='game'){
-  returnModal = origin;
-  const items=SHOP.map(item=>{
-    const cost=powerCost(item);
-    const disabled = item.key==='heal' ? state.hearts>=maxHeartsFor() || state.coins<cost : state.coins<cost;
-    return `<div class="shop-item"><strong>${item.name}</strong><br><span>${item.desc}</span><br><b>${cost} coins</b><div><button class="btn gold" ${disabled?'disabled':''} onclick="buyItem('${item.key}')">Buy</button></div></div>`;
-  }).join('');
-  showModal(`<h2>🛒 Shop</h2><p>Coins: <b>${state.coins}</b></p><div class="row"><button class="btn primary" onclick="openShop(returnModal||'game')">Powers</button><button class="btn purple" onclick="openGearShop(returnModal||'game')">Gear</button></div><h3>Powers</h3>${items}<div class="modal-actions"><button class="btn primary" onclick="closeShop()">${origin==='result'?'Back to Result':'Close Shop'}</button></div>`);
-}
-function closeShop(){ if(returnModal==='result') showResultModal(); else { closeModal(); focusAnswer(); } }
-function buyItem(key){
-  const item=SHOP.find(x=>x.key===key); if(!item || state.coins<item.cost) return;
-  const cost=powerCost(item);
-  if(key==='heal' && state.hearts>=maxHeartsFor()) return toast('Hearts are already full.');
-  if(state.coins<cost) return;
-  state.coins-=cost;
-  if(key==='heal') state.hearts=clamp(state.hearts+1,0,maxHeartsFor()); else state.powers[key]=(state.powers[key]||0)+1;
-  save(); toast(`${item.name} purchased!`); openShop(returnModal||'game');
-}
-
-function openGearShop(origin='game'){
-  returnModal=origin;
-  const rows=GEAR.map(g=>{
-    const owned=state.inventory.gear.includes(g.key);
-    const equipped=state.equipment[g.slot]===g.key;
-    const canBuy=state.coins>=g.cost;
-    return `<div class="shop-item"><strong>${g.icon} ${g.name}</strong><br><span>Slot: ${g.slot} · ${g.desc}</span><br><b>${owned?'Owned':g.cost+' coins'}</b><div>${owned?`<button class="btn gold" ${equipped?'disabled':''} onclick="equipGear('${g.key}')">${equipped?'Equipped':'Equip'}</button>`:`<button class="btn gold" ${canBuy?'':'disabled'} onclick="buyGear('${g.key}')">Buy</button>`}</div></div>`;
-  }).join('');
-  showModal(`<h2>⚔️ Gear Shop</h2><p>Coins: <b>${state.coins}</b></p><div class="row"><button class="btn purple" onclick="openShop(returnModal||'game')">Powers</button><button class="btn primary" onclick="openGearShop(returnModal||'game')">Gear</button></div>${equipmentSummary()}<h3>Items and Armor</h3>${rows}<div class="modal-actions"><button class="btn primary" onclick="closeShop()">${origin==='result'?'Back to Result':'Close Shop'}</button></div>`);
-}
-function buyGear(key){
-  const g=gearByKey(key); if(!g || state.inventory.gear.includes(key)) return;
-  if(state.coins<g.cost) return toast('Not enough coins.');
-  state.coins-=g.cost; state.inventory.gear.push(key); state.equipment[g.slot]=key;
-  state.hearts=clamp(state.hearts,0,maxHeartsFor()); save(); toast(`${g.name} equipped!`); openGearShop(returnModal||'game');
-}
-function equipGear(key){
-  const g=gearByKey(key); if(!g || !state.inventory.gear.includes(key)) return;
-  state.equipment[g.slot]=key; state.hearts=clamp(state.hearts,0,maxHeartsFor()); save(); toast(`${g.name} equipped!`); openGearShop(returnModal||'game');
-}
-function equipmentSummary(){
-  const slots=['helmet','body','legs','weapon'];
-  return `<div class="equipment-grid">${slots.map(slot=>{const g=gearByKey(state.equipment[slot]); return `<div class="equip-slot"><span>${slot}</span><b>${g?g.icon+' '+g.name:'Empty'}</b></div>`}).join('')}</div>`;
-}
-function showCharacter(){
-  const c=classInfo();
-  showModal(`<h2>${c.icon} Character</h2><p><b>${safeNick(state.nickname)}</b> is a <b>${c.name}</b>.</p><p>${c.desc}</p><p class="small">Class Bonus: ${c.bonus}</p>${equipmentSummary()}<h3>Saved Gear</h3><p>${state.inventory.gear.length?state.inventory.gear.map(k=>{const g=gearByKey(k);return `<span class="badge">${g.icon} ${g.name}</span>`}).join(' '):'No gear yet. Visit the shop to buy items.'}</p><div class="modal-actions"><button class="btn purple" onclick="openGearShop('game')">Open Gear Shop</button><button class="btn primary" onclick="closeModal()">Close</button></div>`);
-}
-
-function showLeaderboard(){
-  let lb=[]; try{lb=JSON.parse(localStorage.getItem(LB_KEY)||'[]')}catch{}
-  const rows = lb.length ? lb.map((e,i)=>`<tr><td>${i+1}</td><td>${safeNick(e.nickname)}</td><td>${e.score}</td><td>${e.bestStreak}</td><td>${e.highestArea}</td><td>${e.bossesDefeated}</td></tr>`).join('') : `<tr><td colspan="6">No scores yet.</td></tr>`;
-  showModal(`<h2>Local Leaderboard</h2><p class="small">This leaderboard exists only on this device/browser. Students cannot export it.</p><table class="table"><thead><tr><th>#</th><th>Nick</th><th>Score</th><th>Streak</th><th>Area</th><th>Bosses</th></tr></thead><tbody>${rows}</tbody></table><div class="modal-actions"><button class="btn primary" onclick="closeModal()">Close</button></div>`);
-}
-function showInstructions(){
-  showModal(`<h2>How to Play</h2><p>Choose a class: Knight, Archer, or Mage. Answer multiplication facts to complete each area. At the end of every area, a boss battle begins.</p><p>Use coins to buy powers, helmets, body armor, leg armor, and weapons. Gear stays saved and gives small bonuses.</p><p>After each answer, choose: Next Question, Shop, or Main Menu.</p><p>Progress saves automatically after each question, purchase, equipment change, boss hit, and area completion.</p><p>Use only a nickname. Never type personal information.</p><div class="modal-actions"><button class="btn primary" onclick="closeModal()">Got It</button></div>`);
-}
-function confirmReset(){ showModal(`<h2>Reset Save?</h2><p>This clears this browser's game progress. It cannot be undone.</p><div class="modal-actions"><button class="btn danger" onclick="closeModal();resetAll()">Reset</button><button class="btn" onclick="closeModal()">Cancel</button></div>`); }
-window.addEventListener('beforeunload', save);
-window.startNew=startNew; window.renderMainMenu=renderMainMenu; window.continueAdventure=continueAdventure; window.enterArea=enterArea; window.submitAnswer=submitAnswer; window.nextQuestion=nextQuestion; window.startBossIntro=startBossIntro; window.bossVictory=bossVictory; window.openShop=openShop; window.closeShop=closeShop; window.buyItem=buyItem; window.openGearShop=openGearShop; window.buyGear=buyGear; window.equipGear=equipGear; window.showCharacter=showCharacter; window.confirmMainMenu=confirmMainMenu; window.confirmMainMenuFromResult=confirmMainMenuFromResult; window.showLeaderboard=showLeaderboard; window.showInstructions=showInstructions; window.confirmReset=confirmReset; window.endRunToMenu=endRunToMenu; window.closeModal=closeModal; window.resetAll=resetAll;
-if(state) renderMainMenu(); else renderStart();
+const GEAR=[
+ {id:'wood_sword',name:'Wood Sword',slot:'weapon',cost:40,rarity:'Common',bonus:{damage:2}},
+ {id:'iron_sword',name:'Iron Sword',slot:'weapon',cost:120,rarity:'Uncommon',bonus:{damage:5}},
+ {id:'focus_staff',name:'Focus Staff',slot:'weapon',cost:160,rarity:'Rare',bonus:{xp:0.1,damage:3}},
+ {id:'cloth_hood',name:'Cloth Hood',slot:'helmet',cost:35,rarity:'Common',bonus:{hp:5}},
+ {id:'iron_helm',name:'Iron Helm',slot:'helmet',cost:100,rarity:'Uncommon',bonus:{hp:12}},
+ {id:'leather_vest',name:'Leather Vest',slot:'body',cost:60,rarity:'Common',bonus:{hp:10}},
+ {id:'steel_armor',name:'Steel Armor',slot:'body',cost:180,rarity:'Rare',bonus:{hp:25}},
+ {id:'soft_boots',name:'Soft Boots',slot:'legs',cost:50,rarity:'Common',bonus:{speedCoin:0.1}},
+ {id:'ranger_greaves',name:'Ranger Greaves',slot:'legs',cost:140,rarity:'Rare',bonus:{speedCoin:0.2,hp:8}}
+];
+const POWERS={shield:{name:'Shield',cost:50,desc:'Blocks the next wrong answer.'},double:{name:'Double Points',cost:60,desc:'Doubles points for the next question.'},freeze:{name:'Time Freeze',cost:40,desc:'Removes time pressure for the next question.'},skip:{name:'Skip',cost:35,desc:'Skip one question without penalty.'}};
+function blankMastery(){const m={};for(let a=0;a<=FACT_MAX;a++){for(let b=0;b<=FACT_MAX;b++){m[`${a}x${b}`]={attempts:0,correct:0,incorrect:0,totalTime:0,last:0,recentMiss:0};}}return m;}
+function newState(){return {created:true,nickname:'',classKey:null,level:1,xp:0,coins:100,score:0,bestScore:0,bestStreak:0,streak:0,unlockedArea:0,current:null,inventory:['wood_sword'],equipped:{weapon:'wood_sword',helmet:null,body:null,legs:null},badges:[],powers:{shield:0,double:0,freeze:0,skip:0},active:{double:false,freeze:false,shield:false},leaderboard:[],mastery:blankMastery(),recentFacts:[],settings:{sound:false,accessibility:false}}}
+let S=load();let answerInput=null;let questionStart=0;
+function save(){localStorage.setItem(SAVE_KEY,JSON.stringify(S));}
+function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(raw){const s=JSON.parse(raw); if(!s.mastery) s.mastery=blankMastery(); return s;}}catch(e){} return newState();}
+function stars(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
+function gearBonus(){const out={hp:0,damage:0,xp:0,speedCoin:0};Object.values(S.equipped||{}).forEach(id=>{const g=GEAR.find(x=>x.id===id); if(g) Object.entries(g.bonus).forEach(([k,v])=>out[k]=(out[k]||0)+v);});return out;}
+function heroHP(){const c=CLASSES[S.classKey]||CLASSES.knight;return c.hp+(gearBonus().hp||0)}
+function xpNeeded(){return S.level*100}
+function addXP(n){const b=gearBonus();S.xp+=Math.round(n*(1+(b.xp||0)));while(S.xp>=xpNeeded()){S.xp-=xpNeeded();S.level++;awardBadge('Level '+S.level);} }
+function awardBadge(name){if(!S.badges.includes(name)){S.badges.push(name);toast('Badge earned: '+name)}}
+function toast(msg){console.log(msg)}
+function screen(html){app.innerHTML=html}
+function mainMenu(){save();const has=S.nickname&&S.classKey;screen(`<div class="wrap"><div class="card"><h1 class="title">⚔️ Multiplication Quest RPG</h1><p>A local-only multiplication adventure. Defeat bosses by mastering facts.</p><div class="warning">⚠️ Use a nickname only. Do not use your real name, school, address, phone number, email, or personal information. Progress stays only on this device/browser.</div></div>${has?menuExisting():menuNew()}</div>`)}
+function menuExisting(){return `<div class="card"><h2>Welcome back, ${escapeHtml(S.nickname)} the ${CLASSES[S.classKey].name}</h2><div class="grid"><div class="stat">Level: <b>${S.level}</b><br>Coins: <b>${S.coins}</b><br>Score: <b>${S.score}</b></div><div class="stat">Best Score: <b>${S.bestScore}</b><br>Best Streak: <b>${S.bestStreak}</b><br>Unlocked: <b>${AREAS[S.unlockedArea].name}</b></div></div><div class="row"><button onclick="continueAdventure()">Continue Adventure</button><button class="secondary" onclick="worldMap()">World Map</button><button class="secondary" onclick="heroScreen()">Hero</button><button class="secondary" onclick="localLeaderboard()">Local Leaderboard</button><button class="ghost" onclick="instructions()">Instructions</button></div></div><div class="card"><button class="danger" onclick="confirmReset()">Reset Local Save</button></div>`}
+function menuNew(){return `<div class="card"><h2>Start New Adventure</h2><label>Nickname only:</label><input id="nick" maxlength="16" placeholder="Example: StarFox" class="answerBox" style="font-size:22px;text-align:left;max-width:100%"><h3>Choose Your Hero</h3><div class="grid">${Object.entries(CLASSES).map(([k,c])=>`<div class="card"><h2>${c.icon} ${c.name}</h2><div class="stars">${stars(c.stars)}</div><p>${c.desc}</p><button onclick="startNew('${k}')">Choose ${c.name}</button></div>`).join('')}</div></div>`}
+function startNew(k){const nick=document.getElementById('nick').value.trim().replace(/[^a-zA-Z0-9 _-]/g,'').slice(0,16); if(!nick){alert('Choose a nickname. Do not use your real name.');return} S=newState();S.nickname=nick;S.classKey=k;awardBadge('First Steps');save();worldMap();}
+function worldMap(){screen(`<div class="wrap"><div class="card row space"><h1>🌎 World Map</h1><button class="secondary" onclick="mainMenu()">Main Menu</button></div><div class="grid">${AREAS.map(a=>`<div class="card area ${a.id>S.unlockedArea?'locked':''}"><h2>${a.name}</h2><div class="stars">${stars(a.stars)}</div><p>Facts: ${a.endgame?'Adaptive review':a.facts.join('s, ')+'s'}</p><p>Boss: <b>${a.boss}</b></p>${a.id<=S.unlockedArea?`<button onclick="enterArea(${a.id})">Enter Area</button>`:'<button disabled>Locked</button>'}</div>`).join('')}</div></div>`)}
+function continueAdventure(){if(S.current) renderGame(); else enterArea(Math.min(S.unlockedArea,AREAS.length-1));}
+function enterArea(id){const a=AREAS[id];S.current={area:id,q:0,phase:'questions',bossHP:100,heroHP:heroHP(),lastQuestion:null};save();renderGame();}
+function renderGame(){const c=S.current;if(!c){mainMenu();return} const a=AREAS[c.area]; if(c.phase==='boss') return renderBoss(); const fact=chooseFact(a); c.lastQuestion=fact; questionStart=Date.now(); save();screen(hud()+`<div class="wrap"><div class="card"><div class="row space"><h2>${a.name}</h2><button class="secondary" onclick="confirmQuit()">Main Menu</button></div><p>Question ${c.q+1} of ${a.questions}</p><div class="question">${fact.a} × ${fact.b}</div><div class="row" style="justify-content:center"><input id="answer" class="answerBox" inputmode="numeric" pattern="[0-9]*" autocomplete="off"><button onclick="submitAnswer()">Submit</button></div><p class="kbdNote" style="text-align:center">Press Enter to submit. The answer box should stay focused on mobile.</p><div class="row" style="justify-content:center"><button class="ghost" onclick="usePower('shield')">Shield (${S.powers.shield})</button><button class="ghost" onclick="usePower('double')">Double (${S.powers.double})</button><button class="ghost" onclick="usePower('freeze')">Freeze (${S.powers.freeze})</button><button class="ghost" onclick="usePower('skip')">Skip (${S.powers.skip})</button></div></div></div>`);focusAnswer();}
+function hud(){const b=gearBonus();return `<div class="hud"><div class="wrap row space"><span>${CLASSES[S.classKey].icon} ${escapeHtml(S.nickname)} Lv.${S.level}</span><span>XP ${S.xp}/${xpNeeded()}</span><span>🪙 ${S.coins}</span><span>Score ${S.score}</span><span>Streak ${S.streak}</span></div></div>`}
+function focusAnswer(){setTimeout(()=>{answerInput=document.getElementById('answer'); if(answerInput){answerInput.focus({preventScroll:true}); answerInput.onkeydown=e=>{if(e.key==='Enter')submitAnswer();};}},80);setTimeout(()=>{if(answerInput)answerInput.focus({preventScroll:true});},240)}
+function chooseFact(area){let pool=[];const facts=area.endgame?Array.from({length:13},(_,i)=>i):area.facts;for(const a of facts){for(let b=0;b<=FACT_MAX;b++){pool.push({a,b,key:`${a}x${b}`}); if(a!==b) pool.push({a:b,b:a,key:`${b}x${a}`});}}
+ const recent=new Set(S.recentFacts.slice(-8)); let weighted=[]; pool.forEach(f=>{if(recent.has(f.key)&&pool.length>12)return; const lvl=masteryLevel(f.key); const weights={Automatic:1,Mastered:2,Proficient:4,Developing:8,Learning:12,'Not Introduced':10}; let w=weights[lvl]||6; if(area.endgame && (lvl==='Learning'||lvl==='Developing')) w+=10; for(let i=0;i<w;i++) weighted.push(f);}); return weighted[Math.floor(Math.random()*weighted.length)]||pool[Math.floor(Math.random()*pool.length)];}
+function masteryLevel(key){const m=S.mastery[key]||{attempts:0,correct:0,totalTime:0}; if(m.attempts===0)return 'Not Introduced'; const acc=m.correct/m.attempts; const avg=m.correct?m.totalTime/m.correct:99; if(m.attempts>=20&&acc>=.95&&avg<3)return 'Automatic'; if(m.attempts>=10&&acc>=.9)return 'Mastered'; if(m.attempts>=5&&acc>=.8)return 'Proficient'; if(acc>=.6)return 'Developing'; return 'Learning';}
+function submitAnswer(){const inp=document.getElementById('answer');if(!inp)return;const val=Number(inp.value);const f=S.current.lastQuestion;const correct=val===f.a*f.b;const responseTime=(Date.now()-questionStart)/1000;recordFact(f.key,correct,responseTime);let pts=correct?10:0;let coins=correct?5:0;let msg='';const cls=CLASSES[S.classKey];if(correct){if(responseTime<3){coins+=Math.round(3*(1+cls.coinBoost+(gearBonus().speedCoin||0)));msg+='Fast bonus! '} if(S.active.double){pts*=2;S.active.double=false;msg+='Double points! '} if(Math.random()<cls.crit){pts+=10;msg+='Critical hit! '} S.streak++; S.score+=pts; S.coins+=coins; addXP(10); if(S.streak>=10)awardBadge('10 Correct Streak');}else{if(S.active.shield||S.powers.shield>0){if(S.active.shield)S.active.shield=false; else S.powers.shield--; msg+='Shield blocked the mistake. ';} else {S.streak=0;}}
+S.bestScore=Math.max(S.bestScore,S.score);S.bestStreak=Math.max(S.bestStreak,S.streak);S.recentFacts.push(f.key);S.recentFacts=S.recentFacts.slice(-15);save();showResult(correct,pts,coins,msg,f,val);}
+function recordFact(key,correct,time){if(!S.mastery[key])S.mastery[key]={attempts:0,correct:0,incorrect:0,totalTime:0,last:0,recentMiss:0};const m=S.mastery[key];m.attempts++;m.last=Date.now(); if(correct){m.correct++;m.totalTime+=time;m.recentMiss=0}else{m.incorrect++;m.recentMiss++}}
+function showResult(correct,pts,coins,msg,f,val){modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal"><div class="${correct?'bigGood':'bigBad'}">${correct?'Correct!':'Try again next time'}</div><h2>${f.a} × ${f.b} = ${f.a*f.b}</h2><p>Your answer: ${Number.isNaN(val)?'blank':val}</p><p>+${pts} points · +${coins} coins ${msg}</p><div class="row"><button onclick="nextQuestion()">${S.current.q+1>=AREAS[S.current.area].questions?'Face Boss':'Next Question'}</button><button class="secondary" onclick="openShop()">Shop</button><button class="secondary" onclick="heroScreen(true)">Hero</button><button class="ghost" onclick="closeModal();mainMenu()">Main Menu</button></div></div></div>`}
+function nextQuestion(){closeModal();const a=AREAS[S.current.area];S.current.q++; if(S.current.q>=a.questions){S.current.phase='boss';S.current.bossHP=100;S.current.heroHP=heroHP();save();bossIntro();}else{save();renderGame();}}
+function bossIntro(){const a=AREAS[S.current.area];modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal"><h1>⚠️ Boss Battle</h1><h2>${a.boss}</h2><p>The boss will use a mix of this area's facts and facts you are still practicing.</p><button onclick="closeModal();renderBoss()">Fight Boss</button></div></div>`}
+function renderBoss(){const a=AREAS[S.current.area];const fact=chooseFact({...a,endgame:true});S.current.lastQuestion=fact;questionStart=Date.now();save();screen(hud()+`<div class="wrap"><div class="card boss"><div class="row space"><h2>👹 ${a.boss}</h2><button class="secondary" onclick="confirmQuit()">Main Menu</button></div><p>Boss HP</p><div class="bar"><span style="width:${S.current.bossHP}%"></span></div><p>Hero HP</p><div class="bar"><span style="width:${Math.max(0,S.current.heroHP/heroHP()*100)}%"></span></div><div class="question">${fact.a} × ${fact.b}</div><div class="row" style="justify-content:center"><input id="answer" class="answerBox" inputmode="numeric" pattern="[0-9]*" autocomplete="off"><button onclick="submitBossAnswer()">Strike</button></div></div></div>`);focusAnswer();}
+function submitBossAnswer(){const inp=document.getElementById('answer');const val=Number(inp.value);const f=S.current.lastQuestion;const correct=val===f.a*f.b;const responseTime=(Date.now()-questionStart)/1000;recordFact(f.key,correct,responseTime);const dmgBase=14+(gearBonus().damage||0)+Math.floor(S.level/2);let msg='';if(correct){let dmg=dmgBase;if(Math.random()<CLASSES[S.classKey].crit){dmg*=2;msg='Critical hit! '}S.current.bossHP=Math.max(0,S.current.bossHP-dmg);S.score+=15;S.coins+=8;S.streak++;addXP(15);}else{let hurt=18;if(S.classKey==='knight')hurt=10;if(S.active.shield||S.powers.shield>0){if(S.active.shield)S.active.shield=false;else S.powers.shield--;hurt=0;msg='Shield blocked damage! '}S.current.heroHP=Math.max(0,S.current.heroHP-hurt);S.streak=0;}S.bestScore=Math.max(S.bestScore,S.score);S.bestStreak=Math.max(S.bestStreak,S.streak);S.recentFacts.push(f.key);S.recentFacts=S.recentFacts.slice(-15);save();if(S.current.bossHP<=0)return bossWin();if(S.current.heroHP<=0)return bossLose();modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal"><div class="${correct?'bigGood':'bigBad'}">${correct?'Hit!':'Boss Strikes!'}</div><h2>${f.a} × ${f.b} = ${f.a*f.b}</h2><p>${msg}</p><div class="row"><button onclick="closeModal();renderBoss()">Next Strike</button><button class="secondary" onclick="openShop()">Shop</button><button class="ghost" onclick="closeModal();mainMenu()">Main Menu</button></div></div></div>`}
+function bossWin(){const a=AREAS[S.current.area];awardBadge(`${a.boss} Defeated`);S.coins+=50;addXP(50);if(S.current.area<S.unlockedArea+1){} if(S.current.area<AREAS.length-1)S.unlockedArea=Math.max(S.unlockedArea,S.current.area+1);pushLeader();S.current=null;save();modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal"><h1 class="bigGood">Victory!</h1><h2>${a.boss} defeated</h2><p>+50 coins. New area unlocked if available.</p><button onclick="closeModal();worldMap()">World Map</button></div></div>`}
+function bossLose(){S.current.phase='boss';S.current.heroHP=heroHP();S.current.bossHP=Math.max(50,S.current.bossHP);save();modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal"><h1 class="bigBad">Retreat!</h1><p>Your hero recovers. The boss keeps some damage.</p><button onclick="closeModal();renderBoss()">Try Again</button><button class="secondary" onclick="closeModal();mainMenu()">Main Menu</button></div></div>`}
+function usePower(p){if(S.powers[p]<=0){alert('You do not have this power. Visit the shop.');focusAnswer();return} if(p==='skip'){S.powers.skip--;save();nextQuestion();return} S.powers[p]--;S.active[p]=true;save();alert(POWERS[p].name+' activated.');focusAnswer();}
+function openShop(){const cls=CLASSES[S.classKey];modalRoot.innerHTML+=`<div class="modalOverlay" id="shop"><div class="modal"><h1>🛒 Shop</h1><p>Coins: ${S.coins}</p><h2>Powers</h2>${Object.entries(POWERS).map(([k,p])=>{const cost=Math.round(p.cost*(1-cls.powerDiscount));return `<div class="gearSlot"><b>${p.name}</b> — ${cost} coins<br><span class="muted">${p.desc}</span><br><button onclick="buyPower('${k}',${cost})">Buy</button></div>`}).join('')}<h2>Gear</h2>${GEAR.map(g=>`<div class="gearSlot"><b>${g.name}</b> (${g.rarity}) — ${g.cost} coins<br>Slot: ${g.slot}<br>${S.inventory.includes(g.id)?`<button onclick="equip('${g.id}')">Equip</button>`:`<button onclick="buyGear('${g.id}')">Buy</button>`}</div>`).join('')}<button class="secondary" onclick="closeShop()">Back to Results/Game</button></div></div>`}
+function closeShop(){const el=document.getElementById('shop'); if(el)el.remove(); focusAnswer();}
+function buyPower(k,cost){if(S.coins<cost)return alert('Not enough coins.');S.coins-=cost;S.powers[k]++;save();closeShop();openShop();}
+function buyGear(id){const g=GEAR.find(x=>x.id===id);if(!g||S.coins<g.cost)return alert('Not enough coins.');S.coins-=g.cost;S.inventory.push(id);save();closeShop();openShop();}
+function equip(id){const g=GEAR.find(x=>x.id===id);if(!g)return;S.equipped[g.slot]=id;save();closeShop();openShop();}
+function heroScreen(fromModal=false){const b=gearBonus();const equipped=Object.entries(S.equipped).map(([slot,id])=>`<div class="gearSlot"><b>${slot}</b>: ${id?GEAR.find(g=>g.id===id)?.name:'None'}</div>`).join('');const inv=S.inventory.map(id=>GEAR.find(g=>g.id===id)?.name).filter(Boolean).map(n=>`<span class="pill">${n}</span>`).join('')||'No items yet';const content=`<div class="wrap"><div class="card row space"><h1>🧙 Hero Profile</h1><button class="secondary" onclick="${fromModal?'closeModal();renderGame()':'mainMenu()'}">Back</button></div><div class="grid"><div class="card"><h2>${CLASSES[S.classKey].icon} ${escapeHtml(S.nickname)}</h2><p>${CLASSES[S.classKey].name} · Difficulty <span class="stars">${stars(CLASSES[S.classKey].stars)}</span></p><p>${CLASSES[S.classKey].desc}</p><div class="stat">Level ${S.level}<br>XP ${S.xp}/${xpNeeded()}<br>Coins ${S.coins}<br>Score ${S.score}<br>Best Streak ${S.bestStreak}</div></div><div class="card"><h2>Equipped Gear</h2>${equipped}<p>Bonuses: HP +${b.hp||0}, Damage +${b.damage||0}, XP +${Math.round((b.xp||0)*100)}%</p></div><div class="card"><h2>Inventory</h2>${inv}</div><div class="card"><h2>Badges</h2>${S.badges.length?S.badges.map(x=>`<div class="badge">🏅 ${x}</div>`).join(''):'No badges yet.'}</div></div><div class="card"><h2>Multiplication Mastery</h2>${masteryReport()}</div></div>`; if(fromModal){modalRoot.innerHTML=`<div class="modalOverlay"><div class="modal" style="max-width:900px">${content}<button onclick="closeModal();renderGame()">Back to Game</button></div></div>`}else screen(content)}
+function masteryReport(){const rows=[];for(let n=0;n<=12;n++){let attempts=0,correct=0,total=0,levels={};for(let b=0;b<=12;b++){const m=S.mastery[`${n}x${b}`];attempts+=m.attempts;correct+=m.correct;total+=m.totalTime;levels[masteryLevel(`${n}x${b}`)]=(levels[masteryLevel(`${n}x${b}`)]||0)+1;}const acc=attempts?Math.round(correct/attempts*100):0;const avg=correct?(total/correct).toFixed(1):'—';rows.push(`<tr><td>${n}s</td><td>${attempts}</td><td>${acc}%</td><td>${avg}s</td><td>${Object.entries(levels).sort((a,b)=>b[1]-a[1])[0][0]}</td></tr>`)}return `<table class="masteryTable"><tr><th>Facts</th><th>Attempts</th><th>Accuracy</th><th>Avg Time</th><th>Main Level</th></tr>${rows.join('')}</table><p class="muted">Levels: Not Introduced, Learning, Developing, Proficient, Mastered, Automatic. Weak and slow facts appear more often; recent facts are blocked from repeating too soon.</p>`}
+function localLeaderboard(){pushLeader();screen(`<div class="wrap"><div class="card row space"><h1>🏆 Local Leaderboard</h1><button class="secondary" onclick="mainMenu()">Main Menu</button></div><div class="card"><p class="warning">Local only. This leaderboard is only on this device/browser and is not shared online.</p>${S.leaderboard.slice(0,10).map((r,i)=>`<div class="stat">#${i+1} ${escapeHtml(r.nick)} — Score ${r.score}, Level ${r.level}, Bosses ${r.area}</div>`).join('')||'No scores yet.'}</div></div>`)}
+function pushLeader(){S.leaderboard=S.leaderboard||[];S.leaderboard.push({nick:S.nickname,score:S.score,level:S.level,area:S.unlockedArea,date:new Date().toLocaleDateString()});S.leaderboard.sort((a,b)=>b.score-a.score);S.leaderboard=S.leaderboard.slice(0,20);save();}
+function instructions(){screen(`<div class="wrap"><div class="card"><h1>How to Play</h1><p>Choose a class, answer multiplication facts, earn coins, buy gear and powers, defeat a boss at the end of each area, and unlock harder areas.</p><p>The game adapts by giving more practice on facts you miss or answer slowly, while avoiding repeating the same fact too often.</p><p>All progress is saved only in this browser.</p><button onclick="mainMenu()">Main Menu</button></div></div>`)}
+function confirmQuit(){if(confirm('Return to main menu? Your current progress is saved.')){save();mainMenu();}}
+function confirmReset(){if(confirm('Reset all local game progress on this device?')){localStorage.removeItem(SAVE_KEY);S=newState();mainMenu();}}
+function closeModal(){modalRoot.innerHTML='';focusAnswer();}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+window.addEventListener('beforeunload',save);mainMenu();

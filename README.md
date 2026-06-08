@@ -1,37 +1,31 @@
-# Multiplication Quest: Boss Realms — RPG Gear Build
+# Multiplication Quest RPG
 
-A static GitHub Pages multiplication fluency game for facts 1–10.
-
-## Features
-
-- Quest areas for multiplication facts 1–10
-- Boss battle at the end of each area
-- Local-only save progress
-- Local-only leaderboard on the student device/browser
-- No export button
-- No real names, emails, school names, or personal information requested
-- Student nickname warning
-- Class choice: Knight, Archer, Mage
-- RPG gear: helmet, body armor, leg armor, weapon
-- Power shop and gear shop
-- Mid-area save and Continue Adventure
-- Mobile-friendly answer input
-
-## Hosting on GitHub Pages
-
-Upload these files to the root of your GitHub repository:
-
-- `index.html`
-- `style.css`
-- `script.js`
-- `README.md`
-
-Then go to Settings → Pages → Deploy from branch → main → root.
+Static GitHub Pages multiplication fluency RPG. No backend required.
 
 ## Privacy
+- Students use nicknames only.
+- No real names, emails, accounts, or personal data fields.
+- All progress is saved locally in the browser with localStorage.
+- No export button.
+- No multiplayer or shared online leaderboard.
 
-All progress and leaderboard data are stored only in the browser using localStorage. Nothing is sent to a server.
+## Features
+- Knight, Archer, Mage classes with different gameplay bonuses.
+- Star difficulty ratings for classes and areas.
+- Facts 0–12.
+- Adaptive mastery tracking for each fact.
+- Response time tracking.
+- Weighted question selection: weak/slow facts appear more often.
+- Recent fact blocking to reduce repetition.
+- Boss battle at the end of each area.
+- Gear: helmet, body armor, leg armor, weapon.
+- Powers: Shield, Double Points, Time Freeze, Skip.
+- Hero profile shows stats, badges, inventory, equipped gear, and mastery.
+- Local-only leaderboard.
 
-
-## Mobile Keyboard Focus Fix
-This build keeps the answer box focused after pressing Next Question/Fight Boss by focusing the input immediately in the button event, adding autofocus/mobile numeric input attributes, and retrying focus after render.
+## GitHub Pages Setup
+1. Upload `index.html`, `style.css`, `script.js`, and `README.md` to your repository.
+2. Go to Settings → Pages.
+3. Source: Deploy from a branch.
+4. Branch: main, folder: /root.
+5. Save and wait for GitHub Pages to publish.
