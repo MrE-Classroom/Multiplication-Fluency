@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiplication Quest: Facts 1–10</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero-card" id="startScreen">
+      <div class="badge">Math Facts 1–10</div>
+      <h1>Multiplication Quest</h1>
+      <p class="subtitle">Answer facts, earn coins, unlock badges, and level up your fluency.</p>
+
+      <label for="playerName">Player Name</label>
+      <input id="playerName" maxlength="18" placeholder="Type your name" autocomplete="off" />
+
+      <label for="levelSelect">Choose a Level</label>
+      <select id="levelSelect">
+        <option value="easy">Level 1: Easy — facts 1–5</option>
+        <option value="medium">Level 2: Medium — facts 1–10</option>
+        <option value="hard">Level 3: Hard — timed facts 1–10</option>
+        <option value="boss">Boss Level — faster + streak bonus</option>
+      </select>
+
+      <button id="startBtn" class="primary-btn">Start Quest</button>
+      <button id="practiceBtn" class="secondary-btn">Practice Mode</button>
+      <p class="teacher-note">Tip: Scores save on this device for a classroom-friendly leaderboard.</p>
+    </section>
+
+    <section class="game-card hidden" id="gameScreen" aria-live="polite">
+      <header class="game-header">
+        <div>
+          <span class="small-label">Player</span>
+          <strong id="activePlayer">Player</strong>
+        </div>
+        <div>
+          <span class="small-label">Level</span>
+          <strong id="activeLevel">Easy</strong>
+        </div>
+        <div>
+          <span class="small-label">Time</span>
+          <strong id="timer">60</strong>
+        </div>
+      </header>
+
+      <div class="stats-grid">
+        <div><span>Score</span><strong id="score">0</strong></div>
+        <div><span>Coins</span><strong id="coins">0</strong></div>
+        <div><span>Streak</span><strong id="streak">0</strong></div>
+        <div><span>Accuracy</span><strong id="accuracy">100%</strong></div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <article class="problem-box">
+        <p class="encouragement" id="encouragement">You’ve got this!</p>
+        <h2 id="problem">3 × 4 = ?</h2>
+        <input id="answerInput" inputmode="numeric" pattern="[0-9]*" placeholder="Answer" />
+        <div class="button-row">
+          <button id="submitBtn" class="primary-btn">Submit</button>
+          <button id="skipBtn" class="secondary-btn">Skip</button>
+        </div>
+        <p class="feedback" id="feedback"></p>
+      </article>
+
+      <section class="reward-panel">
+        <h3>Rewards</h3>
+        <div id="badges" class="badges"></div>
+      </section>
+    </section>
+
+    <section class="results-card hidden" id="resultsScreen">
+      <h2>Quest Complete!</h2>
+      <p id="finalMessage"></p>
+      <div class="final-stats">
+        <div><span>Final Score</span><strong id="finalScore">0</strong></div>
+        <div><span>Coins</span><strong id="finalCoins">0</strong></div>
+        <div><span>Best Streak</span><strong id="finalStreak">0</strong></div>
+        <div><span>Accuracy</span><strong id="finalAccuracy">0%</strong></div>
+      </div>
+      <button id="playAgainBtn" class="primary-btn">Play Again</button>
+      <button id="clearScoresBtn" class="secondary-btn">Clear Leaderboard</button>
+    </section>
+
+    <aside class="leaderboard-card">
+      <h2>Leaderboard</h2>
+      <ol id="leaderboard"></ol>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
