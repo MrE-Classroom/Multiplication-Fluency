@@ -1,168 +1,417 @@
-const $ = (id) => document.getElementById(id);
+(() => {
+  'use strict';
 
-const lands = [
-  { id: 1, name: 'Meadow of Ones', facts:[1,2], timer: 0, target: 8, boss:false, lore:'Small sparks of multiplication glow in the meadow.' },
-  { id: 2, name: 'Twin River', facts:[2,3], timer: 20, target: 10, boss:false, lore:'The river splits numbers into equal groups.' },
-  { id: 3, name: 'Cave of Fours', facts:[3,4], timer: 18, target: 12, boss:false, lore:'Echoes repeat facts in the cave walls.' },
-  { id: 4, name: 'Five-Fold Forest', facts:[4,5], timer: 16, target: 12, boss:false, lore:'Every tree grows in groups of five.' },
-  { id: 5, name: 'Boss: The Factor Troll', facts:[1,2,3,4,5], timer: 15, target: 15, boss:true, bossName:'Factor Troll', bossHp: 15, lore:'The Factor Troll guards the first Number Crystal.' },
-  { id: 6, name: 'Six Stone Pass', facts:[6], timer: 14, target: 12, boss:false, lore:'Six stones mark the path to fluency.' },
-  { id: 7, name: 'Seven Star Ridge', facts:[7], timer: 13, target: 12, boss:false, lore:'Seven stars shine only for quick thinkers.' },
-  { id: 8, name: 'Eight Ember Mines', facts:[8], timer: 12, target: 14, boss:false, lore:'The mines burn with harder facts.' },
-  { id: 9, name: 'Nine Cloud Tower', facts:[9], timer: 11, target: 14, boss:false, lore:'Cloud stairs rise in groups of nine.' },
-  { id: 10, name: 'Boss: The Product Dragon', facts:[6,7,8,9,10], timer: 10, target: 20, boss:true, bossName:'Product Dragon', bossHp: 20, lore:'The final boss holds the Master Crystal of Products.' },
-  { id: 11, name: 'Ten Crystal Gate', facts:[1,2,3,4,5,6,7,8,9,10], timer: 9, target: 25, boss:true, bossName:'Crystal Guardian', bossHp: 25, lore:'A final mixed-fact challenge for true heroes.' }
-];
+  const STORAGE_KEY = 'mq_complete_save_v1';
+  const SCORE_KEY = 'mq_complete_scores_v1';
 
-const state = {
-  player: '', mode: 'quest', currentLand: null, a: 0, b: 0, answer: 0,
-  score: 0, coins: 0, streak: 0, lives: 3, correct: 0, total: 0,
-  timer: 0, timerId: null, frozen: false, doubleTurns: 0, shield: false,
-  powers: { double: 0, freeze: 0, shield: 0, hint: 0 }, bossHp: 0, bossMaxHp: 0,
-  sound: true, badges: []
-};
+  const AREAS = [
+    { id: 1, name: 'Meadow of Ones and Twos', facts: [1, 2], questions: 8, boss: 'The Skip-Counting Sprite', time: 0 },
+    { id: 2, name: 'Crystal Cave of Threes and Fours', facts: [3, 4], questions: 10, boss: 'The Array Golem', time: 18 },
+    { id: 3, name: 'Forest of Fives and Sixes', facts: [5, 6], questions: 12, boss: 'The Product Wolf', time: 15 },
+    { id: 4, name: 'Thunder Peaks of Sevens and Eights', facts: [7, 8], questions: 14, boss: 'The Factor Storm', time: 12 },
+    { id: 5, name: 'Dragon Gate of Nines and Tens', facts: [9, 10], questions: 16, boss: 'The Ten-Times Dragon', time: 10 }
+  ];
 
-const defaultProgress = { unlocked: 1, completed: [], totalCoins: 0, badges: [] };
-function getProgress(){ return JSON.parse(localStorage.getItem('mq_progress') || JSON.stringify(defaultProgress)); }
-function saveProgress(p){ localStorage.setItem('mq_progress', JSON.stringify(p)); }
-function getScores(){ return JSON.parse(localStorage.getItem('mq_scores') || '[]'); }
-function saveScores(scores){ localStorage.setItem('mq_scores', JSON.stringify(scores)); }
+  const POWERS = {
+    double: { name: 'Double Points', icon: '✨', desc: 'Next correct answer earns double score.', cost: 25 },
+    freeze: { name: 'Time Freeze', icon: '❄️', desc: 'Adds 10 seconds to the current question.', cost: 20 },
+    shield: { name: 'Shield', icon: '🛡️', desc: 'Blocks one wrong answer or timeout.', cost: 30 },
+    hint: { name: 'Hint', icon: '💡', desc: 'Shows repeated addition for this fact.', cost: 15 },
+    skip: { name: 'Skip', icon: '⏭️', desc: 'Skips a non-boss question safely.', cost: 20 }
+  };
 
-function show(screen){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(screen).classList.add('active'); }
-function beep(freq=520, dur=80){
-  if(!state.sound) return;
-  try { const ctx = new (window.AudioContext||window.webkitAudioContext)(); const osc=ctx.createOscillator(); const gain=ctx.createGain(); osc.frequency.value=freq; osc.connect(gain); gain.connect(ctx.destination); osc.start(); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur/1000); osc.stop(ctx.currentTime + dur/1000); } catch(e) {}
-}
+  const $ = (id) => document.getElementById(id);
+  const screens = ['menu','map','game'];
+  let timerInterval = null;
+  let state = defaultState();
 
-function startQuest(mode='quest'){
-  const name = $('playerName').value.trim() || 'Hero';
-  state.player = name; state.mode = mode;
-  renderMap(); show('mapScreen');
-}
+  function defaultState() {
+    return {
+      player: '', score: 0, coins: 0, streak: 0, bestStreak: 0, lives: 3,
+      unlockedArea: 1, completedAreas: [], currentAreaId: 1,
+      inBoss: false, bossHp: 0, bossMaxHp: 0,
+      qIndex: 0, currentQuestion: null, waitingForNext: false,
+      timeLeft: 0, timerOn: false, sound: true,
+      inventory: { double: 1, freeze: 1, shield: 1, hint: 2, skip: 1 },
+      active: { double: false, shield: false },
+      history: []
+    };
+  }
 
-function renderStats(){
-  const p = getProgress();
-  $('playerStats').innerHTML = `<span>Hero: <b>${escapeHtml(state.player || 'Hero')}</b></span><span>Total Coins: <b>${p.totalCoins}</b></span><span>Unlocked Land: <b>${p.unlocked}</b></span><span>Badges: <b>${p.badges.length}</b></span>`;
-}
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = { ...defaultState(), ...JSON.parse(raw) };
+      state.inventory = { ...defaultState().inventory, ...(state.inventory || {}) };
+      state.active = { ...defaultState().active, ...(state.active || {}) };
+    } catch { state = defaultState(); }
+  }
 
-function renderMap(){
-  renderStats(); const p = getProgress(); const map = $('questMap'); map.innerHTML='';
-  lands.forEach(land=>{
-    const locked = state.mode === 'quest' && land.id > p.unlocked;
-    const complete = p.completed.includes(land.id);
-    const div=document.createElement('div'); div.className='land'+(locked?' locked':'');
-    div.innerHTML = `<div><h3>${land.boss?'👹 ':'🗺️ '}${land.name}</h3><p>${land.lore}</p><p class="tag">Facts: ${land.facts.join(', ')} ${land.timer?`• ${land.timer}s/question`:'• no timer'}</p></div><button class="${locked?'ghost':'primary'}" ${locked?'disabled':''}>${complete?'Replay':'Play'}</button>`;
-    div.querySelector('button').addEventListener('click',()=> startLand(land)); map.appendChild(div);
-  });
-}
+  function beep(freq = 620, dur = 0.06) {
+    if (!state.sound) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.value = 0.04;
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => { osc.stop(); ctx.close(); }, dur * 1000);
+    } catch {}
+  }
 
-function startLand(land){
-  Object.assign(state, { currentLand:land, score:0, coins:0, streak:0, lives:3, correct:0, total:0, timer:land.timer, doubleTurns:0, shield:false, badges:[] });
-  state.powers = { double:0, freeze:0, shield:0, hint:1 };
-  state.bossHp = land.boss ? land.bossHp : 0; state.bossMaxHp = state.bossHp;
-  $('levelTitle').textContent = land.name; $('levelLore').textContent = land.lore;
-  $('bossBarWrap').classList.toggle('hidden', !land.boss); if(land.boss) $('bossName').textContent = land.bossName;
-  updateHud(); nextProblem(); show('gameScreen'); $('answer').focus();
-}
+  function switchScreen(name) {
+    screens.forEach(s => $(`screen-${s}`).classList.toggle('active', s === name));
+    $('menuBtn').classList.toggle('hidden', name === 'menu');
+    if (name !== 'game') stopTimer();
+  }
 
-function nextProblem(){
-  clearInterval(state.timerId); $('hintBox').classList.add('hidden'); $('answer').value='';
-  const facts = state.currentLand.facts; state.a = facts[Math.floor(Math.random()*facts.length)]; state.b = 1+Math.floor(Math.random()*10);
-  if(Math.random()>.5) [state.a,state.b]=[state.b,state.a]; state.answer = state.a*state.b;
-  $('problem').textContent = `${state.a} × ${state.b}`; $('feedback').textContent='Solve the fact!';
-  if(state.currentLand.timer && !state.frozen){
-    state.timer = state.currentLand.timer; $('timer').textContent = state.timer;
-    state.timerId = setInterval(()=>{ state.timer--; $('timer').textContent=state.timer; if(state.timer<=0) handleWrong(true); },1000);
-  } else { $('timer').textContent = state.currentLand.timer ? 'Frozen' : '--'; state.frozen=false; }
-  updateHud();
-}
+  function sanitizeName(name) {
+    return (name || '').replace(/[^a-zA-Z0-9 _-]/g, '').trim().slice(0, 16) || 'MathHero';
+  }
 
-function submitAnswer(){
-  const val = parseInt($('answer').value,10); if(Number.isNaN(val)) return;
-  clearInterval(state.timerId); state.total++;
-  if(val === state.answer) handleCorrect(); else handleWrong(false);
-}
+  function areaById(id) { return AREAS.find(a => a.id === id) || AREAS[0]; }
 
-function handleCorrect(){
-  state.correct++; state.streak++;
-  let pts = 10 + Math.min(state.streak,10); if(state.doubleTurns>0){ pts*=2; state.doubleTurns--; }
-  state.score += pts; state.coins += 2 + Math.floor(state.streak/5);
-  if(state.currentLand.boss){ state.bossHp = Math.max(0, state.bossHp-1); }
-  awardPowers(); $('feedback').textContent = `Correct! +${pts} points`; beep(760,80);
-  if(checkWin()) return; setTimeout(nextProblem, 650);
-}
+  function updateMenu() {
+    $('playerName').value = state.player || '';
+    $('continueBtn').disabled = !state.player;
+    $('soundBtn').textContent = state.sound ? '🔊' : '🔇';
+    renderLeaderboard('menuLeaderboard');
+  }
 
-function handleWrong(timeout){
-  clearInterval(state.timerId);
-  if(state.shield){ state.shield=false; $('feedback').textContent='Shield blocked the mistake!'; beep(420,80); setTimeout(nextProblem,800); updateHud(); return; }
-  state.lives--; state.streak=0; $('feedback').textContent = timeout ? `Time! ${state.a} × ${state.b} = ${state.answer}` : `Try again next time. ${state.a} × ${state.b} = ${state.answer}`; beep(180,120);
-  if(state.lives<=0){ finish(false); return; } setTimeout(nextProblem,1000); updateHud();
-}
+  function updateMap() {
+    $('mapIntro').textContent = `${state.player}, choose an unlocked area. Complete practice questions, then defeat the boss to unlock the next gate.`;
+    const grid = $('areaGrid'); grid.innerHTML = '';
+    AREAS.forEach(area => {
+      const locked = area.id > state.unlockedArea;
+      const complete = state.completedAreas.includes(area.id);
+      const div = document.createElement('div');
+      div.className = `area ${locked ? 'locked' : ''} ${complete ? 'complete' : ''}`;
+      div.innerHTML = `<h3>${complete ? '✅' : locked ? '🔒' : '🟣'} ${area.name}</h3>
+        <p>Facts: ${area.facts.join('s, ')}s</p>
+        <p class="boss">Boss: ${area.boss}</p>
+        <p>${area.time ? area.time + ' seconds per question' : 'No timer'}</p>`;
+      const btn = document.createElement('button');
+      btn.className = locked ? 'secondary' : 'primary';
+      btn.disabled = locked;
+      btn.textContent = complete ? 'Replay Area' : locked ? 'Locked' : 'Enter Area';
+      btn.addEventListener('click', () => startArea(area.id));
+      div.appendChild(btn);
+      grid.appendChild(div);
+    });
+  }
 
-function awardPowers(){
-  if(state.streak === 3) state.powers.hint++;
-  if(state.streak === 5) { state.powers.double++; addBadge('Streak Spark'); }
-  if(state.streak === 8) state.powers.freeze++;
-  if(state.streak === 10) { state.powers.shield++; addBadge('Ten-in-a-Row Hero'); }
-}
-function addBadge(name){ if(!state.badges.includes(name)) state.badges.push(name); }
-function checkWin(){
-  const land = state.currentLand;
-  const won = land.boss ? state.bossHp <= 0 : state.correct >= land.target;
-  if(won){ finish(true); return true; } return false;
-}
+  function startNewQuest() {
+    const name = sanitizeName($('playerName').value);
+    state = defaultState();
+    state.player = name;
+    save();
+    updateMap();
+    switchScreen('map');
+  }
 
-function finish(won){
-  clearInterval(state.timerId);
-  const land = state.currentLand; const accuracy = state.total ? Math.round((state.correct/state.total)*100) : 0;
-  if(won){ addBadge(land.boss ? `Boss Breaker: ${land.bossName}` : `Crystal Restored: ${land.name}`); if(accuracy>=90) addBadge('Accuracy Champion'); }
-  const p = getProgress(); p.totalCoins += state.coins;
-  state.badges.forEach(b=>{ if(!p.badges.includes(b)) p.badges.push(b); });
-  if(won && !p.completed.includes(land.id)) p.completed.push(land.id);
-  if(won && state.mode==='quest') p.unlocked = Math.max(p.unlocked, Math.min(lands.length, land.id+1));
-  saveProgress(p);
-  const scores = getScores(); scores.push({ date:new Date().toLocaleString(), player:state.player, land:land.name, score:state.score, coins:state.coins, correct:state.correct, total:state.total, accuracy, won }); saveScores(scores.slice(-200));
-  $('resultsTitle').textContent = won ? 'Crystal Restored!' : 'Quest Failed — Try Again!';
-  $('resultsText').textContent = `${state.player}, you scored ${state.score}, earned ${state.coins} coins, and answered ${state.correct}/${state.total} correctly (${accuracy}%).`;
-  $('badgeArea').innerHTML = state.badges.map(b=>`<span class="badge">🏅 ${b}</span>`).join('') || '<span class="badge">Keep practicing!</span>';
-  beep(won?900:220,180); show('resultsScreen');
-}
+  function startArea(id) {
+    const area = areaById(id);
+    state.currentAreaId = area.id;
+    state.lives = 3;
+    state.streak = 0;
+    state.qIndex = 0;
+    state.inBoss = false;
+    state.bossHp = 0;
+    state.bossMaxHp = 0;
+    state.waitingForNext = false;
+    state.currentQuestion = null;
+    state.active.double = false;
+    save();
+    switchScreen('game');
+    nextQuestion();
+  }
 
-function updateHud(){
-  $('score').textContent=state.score; $('coins').textContent=state.coins; $('streak').textContent=state.streak; $('lives').textContent=state.lives;
-  $('powerDouble').querySelector('span').textContent = `(${state.powers.double})`; $('powerFreeze').querySelector('span').textContent = `(${state.powers.freeze})`;
-  $('powerShield').querySelector('span').textContent = `(${state.powers.shield})`; $('powerHint').querySelector('span').textContent = `(${state.powers.hint})`;
-  $('powerDouble').disabled = state.powers.double<=0; $('powerFreeze').disabled = state.powers.freeze<=0 || !state.currentLand?.timer; $('powerShield').disabled = state.powers.shield<=0; $('powerHint').disabled = state.powers.hint<=0;
-  if(state.currentLand?.boss){ const pct = Math.max(0, (state.bossHp/state.bossMaxHp)*100); $('bossHp').style.width = pct+'%'; $('bossHpText').textContent = `${state.bossHp}/${state.bossMaxHp}`; }
-}
+  function makeQuestion(boss = false) {
+    const area = areaById(state.currentAreaId);
+    let a;
+    if (boss) a = area.facts[Math.floor(Math.random() * area.facts.length)];
+    else a = area.facts[state.qIndex % area.facts.length];
+    const b = 1 + Math.floor(Math.random() * 10);
+    return Math.random() < .5 ? { a, b, answer: a * b } : { a: b, b: a, answer: a * b };
+  }
 
-function usePower(type){
-  if(state.powers[type]<=0) return; state.powers[type]--;
-  if(type==='double'){ state.doubleTurns=3; $('feedback').textContent='Double Points activated for 3 correct answers!'; }
-  if(type==='freeze'){ state.frozen=true; clearInterval(state.timerId); $('timer').textContent='Frozen'; $('feedback').textContent='Timer frozen for this question!'; }
-  if(type==='shield'){ state.shield=true; $('feedback').textContent='Shield ready! One mistake will be blocked.'; }
-  if(type==='hint'){ $('hintBox').textContent = `${state.a} × ${state.b} means ${state.b} groups of ${state.a}. Repeated addition: ${Array(state.b).fill(state.a).join(' + ')} = ?`; $('hintBox').classList.remove('hidden'); }
-  beep(620,100); updateHud(); $('answer').focus();
-}
+  function nextQuestion() {
+    state.waitingForNext = false;
+    const area = areaById(state.currentAreaId);
+    if (!state.inBoss && state.qIndex >= area.questions) {
+      startBoss(); return;
+    }
+    state.currentQuestion = makeQuestion(state.inBoss);
+    if (!state.inBoss) state.qIndex++;
+    renderGame();
+    startTimer();
+    setTimeout(() => { $('answerInput').focus(); }, 80);
+    save();
+  }
 
-function renderTeacher(){
-  const scores = getScores().slice().reverse();
-  $('leaderboard').innerHTML = scores.length ? `<table><thead><tr><th>Player</th><th>Land</th><th>Score</th><th>Accuracy</th><th>Date</th></tr></thead><tbody>${scores.map(s=>`<tr><td>${escapeHtml(s.player)}</td><td>${escapeHtml(s.land)}</td><td>${s.score}</td><td>${s.accuracy}%</td><td>${escapeHtml(s.date)}</td></tr>`).join('')}</tbody></table>` : 'No scores yet.';
-  const p=getProgress(); $('progressList').innerHTML = `<p><b>Unlocked:</b> Land ${p.unlocked}</p><p><b>Total Coins:</b> ${p.totalCoins}</p><p><b>Completed:</b> ${p.completed.join(', ') || 'None'}</p><p><b>Badges:</b> ${p.badges.join(', ') || 'None'}</p>`;
-  show('teacherScreen');
-}
-function exportCsv(){
-  const rows=[['Date','Player','Land','Score','Coins','Correct','Total','Accuracy','Won'], ...getScores().map(s=>[s.date,s.player,s.land,s.score,s.coins,s.correct,s.total,s.accuracy,s.won])];
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='multiplication-quest-scores.csv'; a.click();
-}
-function escapeHtml(str){ return String(str).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+  function startBoss() {
+    const area = areaById(state.currentAreaId);
+    state.inBoss = true;
+    state.bossMaxHp = 3 + area.id;
+    state.bossHp = state.bossMaxHp;
+    modal('Boss Battle!', `<p><strong>${area.boss}</strong> blocks the gate!</p><p>Each correct answer removes 1 boss heart. Defeat the boss to complete this area.</p>`, [
+      ['Start Boss Battle', 'primary', () => { closeModal(); nextQuestion(); }],
+      ['Main Menu', 'secondary', goMainMenu]
+    ]);
+    save();
+  }
 
-$('startBtn').onclick=()=>startQuest('quest'); $('practiceBtn').onclick=()=>startQuest('practice'); $('teacherBtn').onclick=renderTeacher;
-$('backToStart').onclick=()=>show('startScreen'); $('teacherHome').onclick=()=>show('startScreen'); $('quitBtn').onclick=()=>{ clearInterval(state.timerId); renderMap(); show('mapScreen'); };
-$('submitBtn').onclick=submitAnswer; $('answer').addEventListener('keydown', e=>{ if(e.key==='Enter') submitAnswer(); });
-$('continueBtn').onclick=()=>{ renderMap(); show('mapScreen'); }; $('retryBtn').onclick=()=>startLand(state.currentLand);
-$('powerDouble').onclick=()=>usePower('double'); $('powerFreeze').onclick=()=>usePower('freeze'); $('powerShield').onclick=()=>usePower('shield'); $('powerHint').onclick=()=>usePower('hint');
-$('exportBtn').onclick=exportCsv; $('clearScoresBtn').onclick=()=>{ if(confirm('Clear all scores and progress on this device?')){ localStorage.clear(); renderTeacher(); } };
-$('soundToggle').onclick=()=>{ state.sound=!state.sound; $('soundToggle').textContent=`Sound: ${state.sound?'On':'Off'}`; };
+  function renderGame() {
+    const area = areaById(state.currentAreaId);
+    $('hudName').textContent = state.player;
+    $('hudArea').textContent = area.id;
+    $('hudScore').textContent = state.score;
+    $('hudCoins').textContent = state.coins;
+    $('hudStreak').textContent = state.streak;
+    $('hudLives').textContent = state.lives;
+    $('questionCount').textContent = state.inBoss ? `Boss HP ${state.bossHp}/${state.bossMaxHp}` : `Question ${state.qIndex}/${area.questions}`;
+    $('bossBanner').classList.toggle('hidden', !state.inBoss);
+    $('bossBanner').textContent = state.inBoss ? `⚔️ Boss Battle: ${area.boss}` : '';
+    $('questionText').textContent = `${state.currentQuestion.a} × ${state.currentQuestion.b} = ?`;
+    $('answerInput').value = '';
+    $('feedbackHint').textContent = state.active.double ? 'Double Points is active for the next correct answer.' : 'Type your answer and press Submit.';
+    renderPowers();
+    updateTimerBadge();
+  }
 
-saveProgress(getProgress());
+  function renderPowers() {
+    const bar = $('powerBar'); bar.innerHTML = '';
+    Object.entries(POWERS).forEach(([key, p]) => {
+      const qty = state.inventory[key] || 0;
+      const div = document.createElement('div'); div.className = 'power';
+      div.innerHTML = `<strong>${p.icon} ${p.name} ×${qty}</strong><small>${p.desc}</small>`;
+      const btn = document.createElement('button'); btn.className = 'secondary'; btn.textContent = 'Use';
+      btn.disabled = qty <= 0 || state.waitingForNext || (key === 'skip' && state.inBoss) || (key === 'freeze' && !areaById(state.currentAreaId).time);
+      btn.addEventListener('click', () => usePower(key));
+      div.appendChild(btn); bar.appendChild(div);
+    });
+  }
+
+  function usePower(key) {
+    if ((state.inventory[key] || 0) <= 0 || state.waitingForNext) return;
+    if (key === 'skip' && state.inBoss) return;
+    state.inventory[key]--;
+    if (key === 'double') { state.active.double = true; $('feedbackHint').textContent = '✨ Double Points ready! Get this one correct.'; beep(800); }
+    if (key === 'freeze') { state.timeLeft += 10; updateTimerBadge(); $('feedbackHint').textContent = '❄️ Time Freeze added 10 seconds.'; beep(720); }
+    if (key === 'shield') { state.active.shield = true; $('feedbackHint').textContent = '🛡️ Shield active. It will block one mistake.'; beep(660); }
+    if (key === 'hint') { showHint(); beep(600); }
+    if (key === 'skip') { handleSkip(); return; }
+    renderPowers(); save(); setTimeout(() => $('answerInput').focus(), 50);
+  }
+
+  function showHint() {
+    const q = state.currentQuestion;
+    const smaller = Math.min(q.a, q.b), larger = Math.max(q.a, q.b);
+    $('feedbackHint').textContent = `Hint: ${larger} repeated ${smaller} times. Example: ${Array(smaller).fill(larger).join(' + ')}`;
+  }
+
+  function handleSkip() {
+    stopTimer();
+    state.waitingForNext = true;
+    state.history.push(record('skip', null));
+    modal('Question Skipped', '<p>You used a Skip power. No points lost.</p>', resultActions(false));
+    save(); renderPowers();
+  }
+
+  function startTimer() {
+    stopTimer();
+    const area = areaById(state.currentAreaId);
+    state.timeLeft = state.inBoss ? Math.max(8, area.time - 2) : area.time;
+    state.timerOn = !!state.timeLeft;
+    updateTimerBadge();
+    if (!state.timerOn) return;
+    timerInterval = setInterval(() => {
+      if (state.waitingForNext) return;
+      state.timeLeft--;
+      updateTimerBadge();
+      if (state.timeLeft <= 0) handleAnswer(null, true);
+    }, 1000);
+  }
+
+  function stopTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = null; state.timerOn = false; }
+  function updateTimerBadge() { $('timerBadge').textContent = state.timerOn ? `${state.timeLeft}s` : '∞'; }
+
+  function submitAnswer(e) {
+    e.preventDefault();
+    if (state.waitingForNext) return;
+    const value = $('answerInput').value.trim();
+    if (!/^\d+$/.test(value)) { $('feedbackHint').textContent = 'Enter numbers only.'; $('answerInput').focus(); return; }
+    handleAnswer(Number(value), false);
+  }
+
+  function handleAnswer(given, timedOut) {
+    if (state.waitingForNext) return;
+    stopTimer();
+    state.waitingForNext = true;
+    const q = state.currentQuestion;
+    let correct = given === q.answer;
+    let shielded = false;
+
+    if (!correct && state.active.shield) {
+      shielded = true;
+      state.active.shield = false;
+      state.lives = Math.max(1, state.lives);
+    } else if (!correct) {
+      state.lives--;
+      state.streak = 0;
+    }
+
+    let points = 0, coins = 0;
+    if (correct) {
+      state.streak++;
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+      points = 10 + areaById(state.currentAreaId).id * 2 + Math.min(state.streak, 10);
+      if (state.active.double) { points *= 2; state.active.double = false; }
+      coins = 5 + Math.floor(state.streak / 3);
+      state.score += points; state.coins += coins;
+      if (state.inBoss) state.bossHp--;
+      beep(840);
+    } else {
+      beep(220, .12);
+    }
+
+    state.history.push(record(correct ? 'correct' : timedOut ? 'timeout' : 'wrong', given, points, coins));
+    save(); renderGame();
+
+    if (correct && state.inBoss && state.bossHp <= 0) { completeArea(points, coins); return; }
+    if (state.lives <= 0) { gameOver(); return; }
+
+    const resultClass = correct ? 'correct' : 'wrong';
+    const title = shielded ? 'Shield Protected You!' : correct ? 'Correct!' : timedOut ? 'Time Ran Out' : 'Try Again Next Time';
+    const body = `<p class="${resultClass}">${correct ? 'Great job!' : shielded ? 'Your shield blocked the mistake.' : `The correct answer was ${q.answer}.`}</p>
+      <p><strong>Problem:</strong> ${q.a} × ${q.b} = ${q.answer}</p>
+      <div class="reward">${correct ? `+${points} points and +${coins} coins` : shielded ? 'No life lost because Shield was active.' : 'You lost 1 life.'}</div>
+      <p><strong>Tip:</strong> ${factTip(q)}</p>`;
+    modal(title, body, resultActions(true));
+  }
+
+  function factTip(q) {
+    const f = Math.min(q.a, q.b), other = Math.max(q.a, q.b);
+    if (f === 1) return 'Any number times 1 stays the same.';
+    if (f === 2) return 'Doubles facts are like adding the number to itself.';
+    if (f === 5) return 'Facts with 5 end in 0 or 5.';
+    if (f === 9) return 'For 9s, the digits in the answer often add to 9.';
+    if (f === 10) return 'For 10s, add a zero to the other factor.';
+    return `${q.a} × ${q.b} means ${other} repeated ${f} times.`;
+  }
+
+  function record(result, given, points = 0, coins = 0) {
+    const q = state.currentQuestion || { a: '', b: '', answer: '' };
+    return { date: new Date().toISOString(), player: state.player, area: state.currentAreaId, boss: state.inBoss, problem: `${q.a}x${q.b}`, correctAnswer: q.answer, givenAnswer: given, result, points, coins };
+  }
+
+  function resultActions(includeUpgrade) {
+    const actions = [];
+    if (includeUpgrade) actions.push(['Upgrade Powers', 'secondary', () => openShop(true)]);
+    actions.push(['Next Question', 'primary', () => { closeModal(); nextQuestion(); }]);
+    actions.push(['Main Menu', 'secondary', goMainMenu]);
+    return actions;
+  }
+
+  function completeArea() {
+    const area = areaById(state.currentAreaId);
+    const bonus = 50 + area.id * 20;
+    state.score += bonus; state.coins += 25;
+    if (!state.completedAreas.includes(area.id)) state.completedAreas.push(area.id);
+    state.unlockedArea = Math.max(state.unlockedArea, Math.min(AREAS.length, area.id + 1));
+    addLeaderboard(); save();
+    modal('Boss Defeated!', `<p>🏆 You defeated <strong>${area.boss}</strong> and restored this crystal gate.</p><div class="reward">Area bonus: +${bonus} points and +25 coins</div>${area.id === AREAS.length ? '<p><strong>You restored the Number Kingdom!</strong></p>' : '<p>The next area is unlocked.</p>'}`, [
+      ['Power Shop', 'secondary', () => openShop(true)],
+      ['Quest Map', 'primary', () => { closeModal(); updateMap(); switchScreen('map'); }],
+      ['Main Menu', 'secondary', goMainMenu]
+    ]);
+  }
+
+  function gameOver() {
+    addLeaderboard(); save();
+    modal('Quest Paused', `<p>Your lives ran out, but your progress was saved locally.</p><div class="reward">Score: ${state.score} | Best streak: ${state.bestStreak}</div>`, [
+      ['Try Area Again', 'primary', () => { closeModal(); startArea(state.currentAreaId); }],
+      ['Power Shop', 'secondary', () => openShop(true)],
+      ['Main Menu', 'secondary', goMainMenu]
+    ]);
+  }
+
+  function openShop(fromModal = false) {
+    stopTimer();
+    const list = Object.entries(POWERS).map(([key, p]) => `<div class="shop-item"><strong>${p.icon} ${p.name}</strong><p>${p.desc}</p><p>Cost: ${p.cost} coins</p><button data-buy="${key}" class="secondary">Buy</button></div>`).join('');
+    modal('Power Shop', `<p>You have <strong>${state.coins}</strong> coins.</p><div class="shop-list">${list}</div>`, [
+      ['Close Shop', 'primary', () => { closeModal(); if (!fromModal && screensActive() !== 'game') updateMap(); }],
+      ['Next Question', 'secondary', () => { if (screensActive() === 'game') { closeModal(); nextQuestion(); } }],
+      ['Main Menu', 'secondary', goMainMenu]
+    ]);
+    document.querySelectorAll('[data-buy]').forEach(btn => btn.addEventListener('click', () => buyPower(btn.dataset.buy, fromModal)));
+  }
+
+  function buyPower(key, fromModal) {
+    const p = POWERS[key];
+    if (state.coins < p.cost) { beep(180); return; }
+    state.coins -= p.cost; state.inventory[key] = (state.inventory[key] || 0) + 1;
+    save(); renderGameSafe(); openShop(fromModal); beep(760);
+  }
+
+  function renderGameSafe(){ if(screensActive()==='game') renderGame(); }
+  function screensActive(){ return screens.find(s => $(`screen-${s}`).classList.contains('active')); }
+
+  function modal(title, body, actions) {
+    $('modalTitle').textContent = title;
+    $('modalBody').innerHTML = body;
+    const box = $('modalActions'); box.innerHTML = '';
+    actions.forEach(([label, cls, fn]) => { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.addEventListener('click', fn); box.appendChild(b); });
+    $('modal').classList.remove('hidden');
+  }
+  function closeModal() { $('modal').classList.add('hidden'); }
+  function goMainMenu() { closeModal(); stopTimer(); save(); updateMenu(); switchScreen('menu'); }
+
+  function addLeaderboard() {
+    const scores = getScores();
+    scores.push({ player: state.player, score: state.score, bestStreak: state.bestStreak, date: new Date().toLocaleDateString(), completed: state.completedAreas.length });
+    scores.sort((a,b) => b.score - a.score);
+    localStorage.setItem(SCORE_KEY, JSON.stringify(scores.slice(0, 20)));
+  }
+  function getScores() { try { return JSON.parse(localStorage.getItem(SCORE_KEY) || '[]'); } catch { return []; } }
+  function renderLeaderboard(id) {
+    const el = $(id); el.innerHTML = '';
+    const scores = getScores();
+    if (!scores.length) { el.innerHTML = '<li>No scores yet.</li>'; return; }
+    scores.slice(0, 10).forEach(s => { const li = document.createElement('li'); li.textContent = `${s.player} — ${s.score} pts | ${s.completed || 0} gates`; el.appendChild(li); });
+  }
+
+  function exportCSV() {
+    const rows = [['Date','Nickname','Area','Boss Question','Problem','Student Answer','Correct Answer','Result','Points','Coins']];
+    state.history.forEach(h => rows.push([h.date,h.player,h.area,h.boss,h.problem,h.givenAnswer ?? '',h.correctAnswer,h.result,h.points,h.coins]));
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'multiplication-quest-local-scores.csv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  function resetProgress() {
+    const name = state.player;
+    const sound = state.sound;
+    state = defaultState(); state.player = name; state.sound = sound;
+    save(); updateMap();
+  }
+
+  function init() {
+    load(); updateMenu();
+    $('startBtn').addEventListener('click', startNewQuest);
+    $('continueBtn').addEventListener('click', () => { if (!state.player) return; updateMap(); switchScreen('map'); });
+    $('menuBtn').addEventListener('click', goMainMenu);
+    $('answerForm').addEventListener('submit', submitAnswer);
+    $('openShopBtn').addEventListener('click', () => openShop(false));
+    $('resetProgressBtn').addEventListener('click', resetProgress);
+    $('clearScoresBtn').addEventListener('click', () => { localStorage.removeItem(SCORE_KEY); updateMenu(); });
+    $('exportBtn').addEventListener('click', exportCSV);
+    $('soundBtn').addEventListener('click', () => { state.sound = !state.sound; save(); updateMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') goMainMenu(); });
+  }
+
+  init();
+})();

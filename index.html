@@ -2,115 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multiplication Quest: The Times Table Trials</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Multiplication Quest: Boss Battles</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="app" class="app">
     <header class="topbar">
-      <div>
-        <h1>Multiplication Quest</h1>
-        <p>The Times Table Trials</p>
-      </div>
-      <button id="soundToggle" class="small-btn" aria-label="Toggle sound">Sound: On</button>
+      <button id="menuBtn" class="ghost hidden" type="button">☰ Main Menu</button>
+      <div class="brand">✦ Multiplication Quest ✦</div>
+      <button id="soundBtn" class="ghost" type="button" aria-label="Toggle sound">🔊</button>
     </header>
 
     <main>
-      <section id="startScreen" class="screen active card hero">
-        <h2>The Kingdom of Productia Needs You!</h2>
-        <p class="lore">
-          Long ago, the Number Crystals kept Productia bright and balanced. But the Factor Beasts shattered them across ten lands.
-          Solve multiplication facts, earn powers, defeat bosses, and restore the crystals.
-        </p>
-        <label for="playerName">Hero Name</label>
-        <input id="playerName" maxlength="18" placeholder="Enter nickname" autocomplete="off" />
-        <div class="grid two">
-          <button id="startBtn" class="primary">Start Quest</button>
-          <button id="practiceBtn" class="secondary">Practice Mode</button>
-        </div>
-        <button id="teacherBtn" class="ghost">Teacher / Scores</button>
-      </section>
-
-      <section id="mapScreen" class="screen card">
-        <div class="section-head">
-          <div>
-            <h2>Quest Map</h2>
-            <p>Select a land. Beat levels to unlock bosses.</p>
+      <section id="screen-menu" class="screen active">
+        <div class="hero card">
+          <h1>Multiplication Quest</h1>
+          <p class="subtitle">Restore the Number Kingdom by mastering math facts 1–10.</p>
+          <div class="privacy-warning">
+            <strong>Student Safety:</strong> Do not use your real name. Choose a nickname like <em>StarFox</em>, <em>MathDragon</em>, or <em>BlueComet</em>. This game saves scores only on this device/browser.
           </div>
-          <button id="backToStart" class="small-btn">Home</button>
-        </div>
-        <div id="playerStats" class="stats"></div>
-        <div id="questMap" class="quest-map"></div>
-      </section>
-
-      <section id="gameScreen" class="screen card game-card">
-        <div class="game-head">
-          <div>
-            <h2 id="levelTitle">Level</h2>
-            <p id="levelLore" class="mini-lore"></p>
+          <label for="playerName">Adventurer Nickname</label>
+          <input id="playerName" class="name-input" maxlength="16" placeholder="Example: MathDragon" autocomplete="off" />
+          <div class="button-row">
+            <button id="startBtn" class="primary" type="button">Start Quest</button>
+            <button id="continueBtn" class="secondary" type="button">Continue</button>
           </div>
-          <button id="quitBtn" class="small-btn">Quit</button>
         </div>
 
-        <div class="hud">
-          <span>Score: <b id="score">0</b></span>
-          <span>Coins: <b id="coins">0</b></span>
-          <span>Streak: <b id="streak">0</b></span>
-          <span>Lives: <b id="lives">3</b></span>
-          <span>Time: <b id="timer">--</b></span>
-        </div>
-
-        <div id="bossBarWrap" class="boss-wrap hidden">
-          <div class="boss-label"><span id="bossName">Boss</span><span id="bossHpText">HP</span></div>
-          <div class="boss-bar"><div id="bossHp" class="boss-hp"></div></div>
-        </div>
-
-        <div class="problem-box">
-          <div id="feedback" class="feedback">Ready?</div>
-          <div id="problem" class="problem">3 × 4</div>
-          <input id="answer" inputmode="numeric" pattern="[0-9]*" placeholder="Answer" autocomplete="off" />
-          <button id="submitBtn" class="primary">Submit</button>
-        </div>
-
-        <div class="powers">
-          <button id="powerDouble" class="power" title="Double points for 3 turns">2× Points <span></span></button>
-          <button id="powerFreeze" class="power" title="Freeze timer for one question">Freeze <span></span></button>
-          <button id="powerShield" class="power" title="Block one wrong answer">Shield <span></span></button>
-          <button id="powerHint" class="power" title="Show repeated addition hint">Hint <span></span></button>
-        </div>
-
-        <div id="hintBox" class="hint hidden"></div>
-      </section>
-
-      <section id="resultsScreen" class="screen card">
-        <h2 id="resultsTitle">Quest Complete!</h2>
-        <p id="resultsText"></p>
-        <div id="badgeArea" class="badges"></div>
         <div class="grid two">
-          <button id="continueBtn" class="primary">Continue</button>
-          <button id="retryBtn" class="secondary">Retry</button>
-        </div>
-      </section>
-
-      <section id="teacherScreen" class="screen card">
-        <div class="section-head">
-          <div>
-            <h2>Teacher / Scores</h2>
-            <p>Scores save on this device/browser only.</p>
+          <div class="card">
+            <h2>Quest Lore</h2>
+            <p>The Number Kingdom is protected by ten crystal gates. The bosses stole the multiplication sparks that power each gate. Win facts, earn coins, upgrade powers, and defeat each boss to restore fluency.</p>
           </div>
-          <button id="teacherHome" class="small-btn">Home</button>
+          <div class="card">
+            <h2>Game Rules</h2>
+            <ul>
+              <li>Answer multiplication facts from 1–10.</li>
+              <li>Each area ends with a boss battle.</li>
+              <li>After every question, choose: upgrade, next question, or main menu.</li>
+              <li>Wrong answers give feedback and do not collect personal information.</li>
+            </ul>
+          </div>
         </div>
+
         <div class="grid two">
-          <button id="exportBtn" class="secondary">Export CSV</button>
-          <button id="clearScoresBtn" class="danger">Clear Scores</button>
+          <div class="card">
+            <h2>Local Leaderboard</h2>
+            <ol id="menuLeaderboard" class="leaderboard"></ol>
+            <button id="clearScoresBtn" class="danger ghost" type="button">Clear Local Scores</button>
+          </div>
+          <div class="card">
+            <h2>Teacher Tools</h2>
+            <p>Scores are stored locally only. Export a CSV from this device if you want a quick classroom record.</p>
+            <button id="exportBtn" class="secondary" type="button">Export CSV</button>
+          </div>
         </div>
-        <h3>Leaderboard</h3>
-        <div id="leaderboard" class="leaderboard"></div>
-        <h3>Progress</h3>
-        <div id="progressList" class="leaderboard"></div>
+      </section>
+
+      <section id="screen-map" class="screen">
+        <div class="card">
+          <h1>Quest Map</h1>
+          <p id="mapIntro"></p>
+          <div id="areaGrid" class="area-grid"></div>
+          <div class="button-row">
+            <button id="openShopBtn" class="secondary" type="button">Open Power Shop</button>
+            <button id="resetProgressBtn" class="danger ghost" type="button">Reset Quest Progress</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-game" class="screen">
+        <div class="hud card">
+          <div><strong>Player:</strong> <span id="hudName"></span></div>
+          <div><strong>Area:</strong> <span id="hudArea"></span></div>
+          <div><strong>Score:</strong> <span id="hudScore">0</span></div>
+          <div><strong>Coins:</strong> <span id="hudCoins">0</span></div>
+          <div><strong>Streak:</strong> <span id="hudStreak">0</span></div>
+          <div><strong>Lives:</strong> <span id="hudLives">3</span></div>
+        </div>
+
+        <div class="game-card card">
+          <div class="progress-line">
+            <span id="questionCount">Question 1</span>
+            <span id="timerBadge" class="timer">∞</span>
+          </div>
+          <div id="bossBanner" class="boss-banner hidden"></div>
+          <div id="questionText" class="question">3 × 4 = ?</div>
+          <form id="answerForm" class="answer-form">
+            <input id="answerInput" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Answer" />
+            <button class="primary" type="submit">Submit</button>
+          </form>
+          <div id="feedbackHint" class="hint">Type your answer and press Submit.</div>
+        </div>
+
+        <div class="card">
+          <h2>Powers</h2>
+          <div id="powerBar" class="power-bar"></div>
+        </div>
       </section>
     </main>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2 id="modalTitle">Result</h2>
+      <div id="modalBody"></div>
+      <div id="modalActions" class="modal-actions"></div>
+    </div>
   </div>
 
   <script src="script.js"></script>
