@@ -1,36 +1,25 @@
-# Multiplication Quest: Boss Battles
+# Multiplication Quest: Boss Realms
 
-A complete static multiplication fluency game for facts 1–10. Designed for GitHub Pages with no backend, no accounts, and no personal information collection.
+A static, GitHub Pages-ready multiplication fluency game for facts 1–10.
 
-## Student Privacy
-Students are warned not to use real names. The game only asks for a nickname and stores progress locally in the browser using localStorage. No data is sent anywhere.
+## Privacy and storage
+- No real names, emails, logins, or personal information.
+- Students are warned to use nicknames only.
+- Scores and progress are stored only in the browser on the device using localStorage.
+- No export button is included.
+- No backend, database, cookies, or external services.
 
 ## Features
-- Quest map with 5 areas
-- Facts 1–10 grouped by difficulty
-- Boss battle at the end of every area
-- Points, coins, lives, streaks, and rewards
-- Working powers: Double Points, Time Freeze, Shield, Hint, Skip
-- Result popup after every question
-- Choice after every question: Upgrade Powers, Next Question, or Main Menu
-- Mobile-friendly input that keeps focus between questions
-- Local leaderboard
-- Fully static: index.html, style.css, script.js
+- Quest and boss theme with story/lore.
+- Five areas for multiplication facts 1–10.
+- Boss battle at the end of each area.
+- Working powers: Double Points, Shield, Focus Spark, Heart Refill.
+- Shop returns correctly to the result popup.
+- Result popup after every question with choices: next, shop, or main menu.
+- Main menu and Continue Adventure.
+- Saves current area, question number, boss HP, score, coins, hearts, powers, badges, and completed areas.
+- Mobile-friendly input and Enter-to-submit.
+- Local-only leaderboard.
 
-## GitHub Pages Setup
-1. Create or open your GitHub repository.
-2. Upload `index.html`, `style.css`, `script.js`, and `README.md` to the root of the repository.
-3. Go to Settings → Pages.
-4. Choose Source: Deploy from a branch.
-5. Choose Branch: main and folder: /(root).
-6. Save.
-7. Open the live GitHub Pages link.
-
-## Replacing an Older Version
-Delete the old files first, then upload these four files:
-- index.html
-- style.css
-- script.js
-- README.md
-
-Commit changes. GitHub Pages will update automatically.
+## GitHub Pages setup
+Upload `index.html`, `style.css`, `script.js`, and `README.md` to your repository root. Then enable Pages from Settings > Pages > Deploy from a branch > main > /(root).
