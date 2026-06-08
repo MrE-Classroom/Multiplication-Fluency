@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'mq_complete_save_v1';
-  const SCORE_KEY = 'mq_complete_scores_v1';
+  const STORAGE_KEY = 'mq_localonly_save_v2';
+  const SCORE_KEY = 'mq_localonly_scores_v2';
 
   const AREAS = [
     { id: 1, name: 'Meadow of Ones and Twos', facts: [1, 2], questions: 8, boss: 'The Skip-Counting Sprite', time: 0 },
@@ -384,14 +384,6 @@
     scores.slice(0, 10).forEach(s => { const li = document.createElement('li'); li.textContent = `${s.player} — ${s.score} pts | ${s.completed || 0} gates`; el.appendChild(li); });
   }
 
-  function exportCSV() {
-    const rows = [['Date','Nickname','Area','Boss Question','Problem','Student Answer','Correct Answer','Result','Points','Coins']];
-    state.history.forEach(h => rows.push([h.date,h.player,h.area,h.boss,h.problem,h.givenAnswer ?? '',h.correctAnswer,h.result,h.points,h.coins]));
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'multiplication-quest-local-scores.csv'; a.click(); URL.revokeObjectURL(a.href);
-  }
-
   function resetProgress() {
     const name = state.player;
     const sound = state.sound;
@@ -408,7 +400,6 @@
     $('openShopBtn').addEventListener('click', () => openShop(false));
     $('resetProgressBtn').addEventListener('click', resetProgress);
     $('clearScoresBtn').addEventListener('click', () => { localStorage.removeItem(SCORE_KEY); updateMenu(); });
-    $('exportBtn').addEventListener('click', exportCSV);
     $('soundBtn').addEventListener('click', () => { state.sound = !state.sound; save(); updateMenu(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') goMainMenu(); });
   }

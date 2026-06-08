@@ -15,7 +15,6 @@ Students are warned not to use real names. The game only asks for a nickname and
 - Choice after every question: Upgrade Powers, Next Question, or Main Menu
 - Mobile-friendly input that keeps focus between questions
 - Local leaderboard
-- CSV export for local classroom records
 - Fully static: index.html, style.css, script.js
 
 ## GitHub Pages Setup
