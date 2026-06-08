@@ -62,3 +62,9 @@ button,input,select{font:inherit}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0b1222;color:white;border:2px solid var(--accent2);border-radius:999px;padding:12px 18px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.5);font-weight:bold}
 .table{width:100%;border-collapse:collapse}.table th,.table td{border-bottom:1px solid rgba(255,255,255,.15);padding:8px;text-align:left}.table th{color:var(--accent)}
 @media(max-width:600px){#app{padding:10px}.screen,.card{padding:13px;border-radius:16px}.btn{width:100%;}.row .btn{width:auto;flex:1 1 150px}.problem{margin:10px 0}.modal-actions .btn{width:100%}}
+.class-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0;text-align:left}
+.class-card{display:block;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.14);border-radius:16px;padding:12px;cursor:pointer;min-height:130px}
+.class-card input{margin-right:6px}.class-card:has(input:checked){border-color:var(--accent);background:rgba(255,209,102,.16)}
+.class-icon{font-size:2rem;display:block;text-align:center}.class-card b{display:block;color:var(--accent2);text-align:center;margin:4px 0}.class-card small{display:block;color:var(--muted);line-height:1.35;text-align:center}
+.equipment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0}.equip-slot{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px;text-align:center}.equip-slot span{display:block;text-transform:capitalize;color:var(--muted);font-size:.85rem}.equip-slot b{display:block;color:var(--accent);margin-top:4px}
+.stat span{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}

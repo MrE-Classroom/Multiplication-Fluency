@@ -1,25 +1,37 @@
-# Multiplication Quest: Boss Realms
+# Multiplication Quest: Boss Realms — RPG Gear Build
 
-A static, GitHub Pages-ready multiplication fluency game for facts 1–10.
-
-## Privacy and storage
-- No real names, emails, logins, or personal information.
-- Students are warned to use nicknames only.
-- Scores and progress are stored only in the browser on the device using localStorage.
-- No export button is included.
-- No backend, database, cookies, or external services.
+A static GitHub Pages multiplication fluency game for facts 1–10.
 
 ## Features
-- Quest and boss theme with story/lore.
-- Five areas for multiplication facts 1–10.
-- Boss battle at the end of each area.
-- Working powers: Double Points, Shield, Focus Spark, Heart Refill.
-- Shop returns correctly to the result popup.
-- Result popup after every question with choices: next, shop, or main menu.
-- Main menu and Continue Adventure.
-- Saves current area, question number, boss HP, score, coins, hearts, powers, badges, and completed areas.
-- Mobile-friendly input and Enter-to-submit.
-- Local-only leaderboard.
 
-## GitHub Pages setup
-Upload `index.html`, `style.css`, `script.js`, and `README.md` to your repository root. Then enable Pages from Settings > Pages > Deploy from a branch > main > /(root).
+- Quest areas for multiplication facts 1–10
+- Boss battle at the end of each area
+- Local-only save progress
+- Local-only leaderboard on the student device/browser
+- No export button
+- No real names, emails, school names, or personal information requested
+- Student nickname warning
+- Class choice: Knight, Archer, Mage
+- RPG gear: helmet, body armor, leg armor, weapon
+- Power shop and gear shop
+- Mid-area save and Continue Adventure
+- Mobile-friendly answer input
+
+## Hosting on GitHub Pages
+
+Upload these files to the root of your GitHub repository:
+
+- `index.html`
+- `style.css`
+- `script.js`
+- `README.md`
+
+Then go to Settings → Pages → Deploy from branch → main → root.
+
+## Privacy
+
+All progress and leaderboard data are stored only in the browser using localStorage. Nothing is sent to a server.
+
+
+## Mobile Keyboard Focus Fix
+This build keeps the answer box focused after pressing Next Question/Fight Boss by focusing the input immediately in the button event, adding autofocus/mobile numeric input attributes, and retrying focus after render.
