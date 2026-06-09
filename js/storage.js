@@ -1,9 +1,13 @@
-window.StorageManager = (() => {
-  const KEY = 'multiplicationAdventureV8';
-  function safeGet(){try{return localStorage.getItem(KEY)}catch(e){return null}}
-  function safeSet(value){try{localStorage.setItem(KEY,value);return true}catch(e){return false}}
-  function load(){const raw=safeGet(); if(!raw) return null; try{return JSON.parse(raw)}catch(e){return null}}
-  function save(state){return safeSet(JSON.stringify(state))}
-  function reset(){try{localStorage.removeItem(KEY)}catch(e){}}
-  return {load,save,reset};
+window.GameStorage = (() => {
+  const KEY = 'multiplicationAdventureClassQuestV9';
+  function load(){
+    try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; }
+    catch(e){ console.warn('Storage unavailable. Running without saved progress.', e); return null; }
+  }
+  function save(state){
+    try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+    catch(e){ console.warn('Save failed.', e); return false; }
+  }
+  function clear(){ try { localStorage.removeItem(KEY); } catch(e){} }
+  return { load, save, clear };
 })();
