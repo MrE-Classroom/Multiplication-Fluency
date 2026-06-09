@@ -1,35 +1,37 @@
-# Multiplication Adventure: Class Quest v8
+# Multiplication Adventure: Class Quest v9
 
-A single-device multiplication fluency RPG for student practice.
+A single-device multiplication fluency RPG for students.
 
 ## Upload to GitHub Pages
-Upload these files and folders to the root of your GitHub repository:
 
-- index.html
-- README.md
-- css/
-- data/
-- js/
-- assets/ (optional/empty)
+Upload these files and folders to the root of the repository:
 
-Then enable GitHub Pages from the main branch and root folder.
+- `index.html`
+- `README.md`
+- `css/styles.css`
+- `data/gameData.js`
+- `js/storage.js`
+- `js/mastery.js`
+- `js/game.js`
+- `js/ui.js`
 
-## Features
+The `assets` folder is currently empty and not required.
+
+## Included mechanics
+
 - Locked Knight, Archer, and Mage classes
 - One free class change, then 25 coins
 - Class changes only in Town and not during boss attempts
-- Five-part RPG HUD layout on desktop/tablet
-- Mobile layout with center screen and slide-up panels
+- Five-part RPG layout after class selection
 - Training Area always available in Town
+- Sequential area locks
+- Boss keys required for boss access
+- Manual answer submission only
 - Class-filtered shop
-- Inventory with wrong-class item locks
-- Cosmetics and pets
-- Quest Board and active quest log
-- Boss keys and boss battles
+- Items buy into inventory first and do not auto-equip
+- Inventory management with equip and unequip
+- Current Mastery 0–10 table
 - Personal records only
-- Current Mastery button with 0–10 multiplication matrix
-- Weak fact training and mastery tracking
-- Round summaries
-- Easy-access Settings / Reset button in Town
+- Reset button with confirmation
 
 Progress saves locally on each student device.
