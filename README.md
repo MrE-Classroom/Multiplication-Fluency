@@ -1,4 +1,4 @@
-# Multiplication Adventure: Class Quest v9
+# Multiplication Adventure: Class Quest v10
 
 A single-device multiplication fluency RPG for students.
 
@@ -26,10 +26,12 @@ The `assets` folder is currently empty and not required.
 - Training Area always available in Town
 - Sequential area locks
 - Boss keys required for boss access
+- Better gear tiers unlocked by boss progression
 - Manual answer submission only
-- Class-filtered shop
+- Class-filtered shop with locked item previews
 - Items buy into inventory first and do not auto-equip
 - Inventory management with equip and unequip
+- Class abilities: Knight Shield Block, Archer Streak Shot, Mage Focus Spell
 - Current Mastery 0–10 table
 - Personal records only
 - Reset button with confirmation

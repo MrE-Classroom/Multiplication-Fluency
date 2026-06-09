@@ -1,5 +1,5 @@
 window.GameStorage = (() => {
-  const KEY = 'multiplicationAdventureClassQuestV9';
+  const KEY = 'multiplicationAdventureClassQuestV10';
   function load(){
     try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; }
     catch(e){ console.warn('Storage unavailable. Running without saved progress.', e); return null; }
