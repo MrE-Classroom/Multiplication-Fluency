@@ -1,25 +1,36 @@
 # Multiplication Adventure: Class Quest
 
-Single-file browser game for GitHub Pages.
+A single-device multiplication fluency game for students.
 
-## Included in this rebuild
-- Town with always-available Training Area
-- Locked classes: Knight, Archer, Mage
+## Folder Structure
+
+- `index.html` — main page
+- `css/styles.css` — layout and visual styling
+- `js/storage.js` — local progress save/load
+- `js/mastery.js` — fact mastery and question selection
+- `js/ui.js` — reusable interface helpers
+- `js/game.js` — core game flow
+- `data/gameData.js` — classes, areas, quests, and items
+- `assets/` — reserved for future images/audio
+
+## Features
+
+- Locked Knight, Archer, and Mage classes
 - One free class change, then 25 coins
-- Class changes only in Town and blocked during boss attempts
-- Class-filtered shop with knight/archer/mage gear and universal cosmetics
-- Inventory keeps owned wrong-class items but locks equip
-- Personal records only; no multiplayer leaderboard
-- Quest board
+- Class changes only from Town
+- Training Area always available in Town
+- Class-filtered shop
+- Inventory with wrong-class item locking
+- Cosmetics, pets, auras, and frames
+- Quest Board
 - Boss keys
-- Mastery tracking and weak fact training
-- Hero profile
 - Area progression
-- Class abilities
-- Item preview before buying
-- Round summary
-- No full-page scrolling during gameplay; scrolling is contained inside panels
+- Personal records only
+- Fact mastery tracking
+- Weak fact training
+- Round summaries
+- Mobile-safe panel layout
 
-## Use
-Open `index.html` in a browser or upload the folder contents to a GitHub Pages repository.
-Progress saves in localStorage on the individual device.
+## GitHub Pages
+
+Upload the entire folder contents to a repository. GitHub Pages will load `index.html` automatically.
