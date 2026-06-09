@@ -1,45 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Multiplication Adventure: Class Quest</title>
-  <link rel="stylesheet" href="css/styles.css" />
-</head>
-<body>
-  <div id="app" class="app-shell">
-    <header class="topbar">
-      <div class="brand-mark" aria-hidden="true">⚔️</div>
-      <div class="brand-text">
-        <h1>Multiplication Adventure</h1>
-        <p>Class Quest • Progress saves on this device</p>
-      </div>
-    </header>
-
-    <main id="screen" class="screen" aria-live="polite"></main>
-
-    <footer class="statusbar">
-      <div><strong id="status-class">Class:</strong> <span id="classLabel">None</span></div>
-      <div><strong>Coins:</strong> <span id="coinLabel">0</span></div>
-      <div><strong>Level:</strong> <span id="levelLabel">1</span></div>
-    </footer>
-  </div>
-
-  <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
-    <section class="modal-card">
-      <div class="modal-header">
-        <h2 id="modalTitle">Message</h2>
-        <button id="modalClose" class="icon-button" type="button" aria-label="Close">×</button>
-      </div>
-      <div id="modalBody" class="modal-body"></div>
-      <div id="modalActions" class="modal-actions"></div>
-    </section>
-  </div>
-
-  <script src="data/gameData.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/mastery.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/game.js"></script>
-</body>
-</html>
+window.StorageManager = (() => {
+  const KEY = 'multiplicationAdventureV8';
+  function safeGet(){try{return localStorage.getItem(KEY)}catch(e){return null}}
+  function safeSet(value){try{localStorage.setItem(KEY,value);return true}catch(e){return false}}
+  function load(){const raw=safeGet(); if(!raw) return null; try{return JSON.parse(raw)}catch(e){return null}}
+  function save(state){return safeSet(JSON.stringify(state))}
+  function reset(){try{localStorage.removeItem(KEY)}catch(e){}}
+  return {load,save,reset};
+})();

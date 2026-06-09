@@ -1,36 +1,14 @@
-# Multiplication Adventure: Class Quest
-
-A single-device multiplication fluency game for students.
-
-## Folder Structure
-
-- `index.html` — main page
-- `css/styles.css` — layout and visual styling
-- `js/storage.js` — local progress save/load
-- `js/mastery.js` — fact mastery and question selection
-- `js/ui.js` — reusable interface helpers
-- `js/game.js` — core game flow
-- `data/gameData.js` — classes, areas, quests, and items
-- `assets/` — reserved for future images/audio
-
-## Features
-
-- Locked Knight, Archer, and Mage classes
-- One free class change, then 25 coins
-- Class changes only from Town
-- Training Area always available in Town
-- Class-filtered shop
-- Inventory with wrong-class item locking
-- Cosmetics, pets, auras, and frames
-- Quest Board
-- Boss keys
-- Area progression
-- Personal records only
-- Fact mastery tracking
-- Weak fact training
-- Round summaries
-- Mobile-safe panel layout
-
-## GitHub Pages
-
-Upload the entire folder contents to a repository. GitHub Pages will load `index.html` automatically.
+window.Mastery = (() => {
+  const MAX = 10;
+  const levels = ['New','Needs Practice','Getting Better','Strong','Mastered'];
+  function key(a,b){return `${a}x${b}`}
+  function init(){const facts={}; for(let a=0;a<=MAX;a++){for(let b=0;b<=MAX;b++){facts[key(a,b)]={a,b,attempts:0,correct:0,streak:0,recentMisses:0,level:0,last:null};}} return facts}
+  function productKey(k){const [a,b]=k.split('x').map(Number); return a*b}
+  function accuracy(f){return f.attempts ? Math.round((f.correct/f.attempts)*100) : 0}
+  function recalc(f){const acc=accuracy(f); let level=0; if(f.attempts===0) level=0; else if(acc<60 || f.recentMisses>=2) level=1; else if(f.attempts>=3 && acc>=60) level=2; if(f.attempts>=5 && acc>=75 && f.streak>=2) level=3; if(f.attempts>=6 && acc>=85 && f.streak>=3 && f.recentMisses===0) level=4; f.level=level; return f}
+  function record(facts,a,b,isCorrect){const k=key(a,b); const f=facts[k] || {a,b,attempts:0,correct:0,streak:0,recentMisses:0,level:0,last:null}; const before=f.level; f.attempts++; if(isCorrect){f.correct++; f.streak++; f.recentMisses=Math.max(0,f.recentMisses-1)} else {f.streak=0; f.recentMisses++} f.last=Date.now(); recalc(f); facts[k]=f; return {fact:f, improved:f.level>before, before, after:f.level}}
+  function summary(facts){const vals=Object.values(facts); const attempts=vals.reduce((s,f)=>s+f.attempts,0); const correct=vals.reduce((s,f)=>s+f.correct,0); const mastered=vals.filter(f=>f.level===4).length; const strong=vals.filter(f=>f.level===3).length; const better=vals.filter(f=>f.level===2).length; const needs=vals.filter(f=>f.level===1).length; const practiced=vals.filter(f=>f.attempts>0).length; return {totalFacts:121,attempts,correct,accuracy:attempts?Math.round(correct/attempts*100):0,mastered,strong,better,needs,complete:Math.round(mastered/121*100),practiced}}
+  function weakFacts(facts,limit=8){return Object.values(facts).filter(f=>f.level<3).sort((a,b)=>(a.level-b.level)||(b.recentMisses-a.recentMisses)||(a.attempts-b.attempts)).slice(0,limit)}
+  function chooseFact(facts,focus=[],mode='area',recent=[]){let pool=Object.values(facts); if(focus.length){pool=pool.filter(f=>focus.includes(f.a)||focus.includes(f.b))} if(mode==='training'){const weak=weakFacts(facts,50); const r=Math.random(); if(r<.6) pool=weak; else if(r<.9) pool=Object.values(facts).filter(f=>f.level>=2&&f.level<4); else pool=Object.values(facts).filter(f=>f.level<=1)} pool=pool.filter(f=>!recent.includes(key(f.a,f.b))); if(!pool.length) pool=Object.values(facts); pool.sort((a,b)=>(a.level-b.level)+(Math.random()-.5)); const f=pool[Math.floor(Math.random()*Math.min(pool.length,12))]||pool[0]; return {a:f.a,b:f.b,product:f.a*f.b}}
+  return {MAX,levels,key,init,record,summary,weakFacts,chooseFact,accuracy,productKey};
+})();
